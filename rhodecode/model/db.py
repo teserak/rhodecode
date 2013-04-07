@@ -1149,14 +1149,14 @@ class Repository(Base, BaseModel):
 
     def set_invalidate(self):
         """
-        set a cache for invalidation for this instance
+        Mark caches of this repo as invalid.
         """
         CacheInvalidation.set_invalidate(repo_name=self.repo_name)
 
     def scm_instance_no_cache(self):
         return self.__get_instance()
 
-    @LazyProperty
+    @property
     def scm_instance(self):
         import rhodecode
         full_cache = str2bool(rhodecode.CONFIG.get('vcs_full_cache'))
@@ -1169,7 +1169,6 @@ class Repository(Base, BaseModel):
         def _c(repo_name):
             return self.__get_instance()
         rn = self.repo_name
-        log.debug('Getting cached instance of repo')
 
         if cache_map:
             # get using prefilled cache_map
@@ -1183,8 +1182,11 @@ class Repository(Base, BaseModel):
 
         if invalidate_repo is not None:
             region_invalidate(_c, None, rn)
+            log.debug('Cache for %s invalidated, getting new object' % (rn))
             # update our cache
             CacheInvalidation.set_valid(invalidate_repo.cache_key)
+        else:
+            log.debug('Getting obj for %s from cache' % (rn))
         return _c(rn)
 
     def __get_instance(self):
@@ -1638,61 +1640,58 @@ class CacheInvalidation(Base, BaseModel):
     cache_id = Column("cache_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
     # cache_key as created by _get_cache_key
     cache_key = Column("cache_key", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
-    # cache_args is usually a repo_name, possibly with _README/_RSS/_ATOM suffix
+    # cache_args is a repo_name
     cache_args = Column("cache_args", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
-    # instance sets cache_active True when it is caching, other instances set cache_active to False to invalidate
+    # instance sets cache_active True when it is caching,
+    # other instances set cache_active to False to indicate that this cache is invalid
     cache_active = Column("cache_active", Boolean(), nullable=True, unique=None, default=False)
 
-    def __init__(self, cache_key, cache_args=''):
+    def __init__(self, cache_key, repo_name=''):
         self.cache_key = cache_key
-        self.cache_args = cache_args
+        self.cache_args = repo_name
         self.cache_active = False
 
     def __unicode__(self):
-        return u"<%s('%s:%s')>" % (self.__class__.__name__,
-                                  self.cache_id, self.cache_key)
+        return u"<%s('%s:%s[%s]')>" % (self.__class__.__name__,
+                            self.cache_id, self.cache_key, self.cache_active)
+
+    def _cache_key_partition(self):
+        prefix, repo_name, suffix = self.cache_key.partition(self.cache_args)
+        return prefix, repo_name, suffix
 
     def get_prefix(self):
         """
-        Guess prefix that might have been used in _get_cache_key to generate self.cache_key .
-        Only used for informational purposes in repo_edit.html .
+        get prefix that might have been used in _get_cache_key to
+        generate self.cache_key. Only used for informational purposes
+        in repo_edit.html.
         """
-        _split = self.cache_key.split(self.cache_args, 1)
-        if len(_split) == 2:
-            return _split[0]
-        return ''
+        # prefix, repo_name, suffix
+        return self._cache_key_partition()[0]
+
+    def get_suffix(self):
+        """
+        get suffix that might have been used in _get_cache_key to
+        generate self.cache_key. Only used for informational purposes
+        in repo_edit.html.
+        """
+        # prefix, repo_name, suffix
+        return self._cache_key_partition()[2]
 
     @classmethod
     def _get_cache_key(cls, key):
         """
         Wrapper for generating a unique cache key for this instance and "key".
+        key must / will start with a repo_name which will be stored in .cache_args .
         """
         import rhodecode
         prefix = rhodecode.CONFIG.get('instance_id', '')
         return "%s%s" % (prefix, key)
 
     @classmethod
-    def _get_or_create_inv_obj(cls, key, repo_name, commit=True):
-        inv_obj = Session().query(cls).filter(cls.cache_key == key).scalar()
-        if not inv_obj:
-            try:
-                inv_obj = CacheInvalidation(key, repo_name)
-                Session().add(inv_obj)
-                if commit:
-                    Session().commit()
-            except Exception:
-                log.error(traceback.format_exc())
-                Session().rollback()
-        return inv_obj
-
-    @classmethod
     def invalidate(cls, key):
         """
-        Returns Invalidation object if this given key should be invalidated
-        None otherwise. `cache_active = False` means that this cache
-        state is not valid and needs to be invalidated
-
-        :param key:
+        Returns Invalidation object if the local cache with the given key is invalid,
+        None otherwise.
         """
         repo_name = key
         repo_name = remove_suffix(repo_name, '_README')
@@ -1700,33 +1699,35 @@ class CacheInvalidation(Base, BaseModel):
         repo_name = remove_suffix(repo_name, '_ATOM')
 
         cache_key = cls._get_cache_key(key)
-        inv = cls._get_or_create_inv_obj(cache_key, repo_name)
+        inv_obj = Session().query(cls).filter(cls.cache_key == cache_key).scalar()
+        if not inv_obj:
+            try:
+                inv_obj = CacheInvalidation(cache_key, repo_name)
+                Session().add(inv_obj)
+                Session().commit()
+            except Exception:
+                log.error(traceback.format_exc())
+                Session().rollback()
+                return
 
-        if inv and not inv.cache_active:
-            return inv
+        if not inv_obj.cache_active:
+            # `cache_active = False` means that this cache
+            # no longer is valid
+            return inv_obj
 
     @classmethod
-    def set_invalidate(cls, key=None, repo_name=None):
+    def set_invalidate(cls, repo_name):
         """
-        Mark this Cache key for invalidation, either by key or whole
-        cache sets based on repo_name
-
-        :param key:
+        Mark all caches of a repo as invalid in the database.
         """
         invalidated_keys = []
-        if key:
-            assert not repo_name
-            cache_key = cls._get_cache_key(key)
-            inv_objs = Session().query(cls).filter(cls.cache_key == cache_key).all()
-        else:
-            assert repo_name
-            inv_objs = Session().query(cls).filter(cls.cache_args == repo_name).all()
+        inv_objs = Session().query(cls).filter(cls.cache_args == repo_name).all()
 
         try:
             for inv_obj in inv_objs:
+                log.debug('marking %s key for invalidation based on repo_name=%s'
+                          % (inv_obj, safe_str(repo_name)))
                 inv_obj.cache_active = False
-                log.debug('marking %s key for invalidation based on key=%s,repo_name=%s'
-                  % (inv_obj, key, safe_str(repo_name)))
                 invalidated_keys.append(inv_obj.cache_key)
                 Session().add(inv_obj)
             Session().commit()
@@ -1736,13 +1737,11 @@ class CacheInvalidation(Base, BaseModel):
         return invalidated_keys
 
     @classmethod
-    def set_valid(cls, key):
+    def set_valid(cls, cache_key):
         """
         Mark this cache key as active and currently cached
-
-        :param key:
         """
-        inv_obj = cls.query().filter(cls.cache_key == key).scalar()
+        inv_obj = cls.query().filter(cls.cache_key == cache_key).scalar()
         inv_obj.cache_active = True
         Session().add(inv_obj)
         Session().commit()

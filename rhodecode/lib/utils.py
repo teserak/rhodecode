@@ -356,19 +356,6 @@ def set_rhodecode_config(config):
         config[k] = v
 
 
-def invalidate_cache(cache_key, *args):
-    """
-    Puts cache invalidation task into db for
-    further global cache invalidation
-    """
-
-    from rhodecode.model.scm import ScmModel
-
-    if cache_key.startswith('get_repo_cached_'):
-        name = cache_key.split('get_repo_cached_')[-1]
-        ScmModel().mark_for_invalidation(name)
-
-
 def map_groups(path):
     """
     Given a full path to a repository, create all nested groups that this
@@ -480,9 +467,9 @@ def repo2db_mapper(initial_repo_list, remove_obsolete=False,
                 log.debug("Removing non-existing repository found in db `%s`" %
                           repo.repo_name)
                 try:
-                    sa.delete(repo)
-                    sa.commit()
                     removed.append(repo.repo_name)
+                    RepoModel(sa).delete(repo, forks='detach', fs_remove=False)
+                    sa.commit()
                 except Exception:
                     #don't hold further removals on error
                     log.error(traceback.format_exc())
