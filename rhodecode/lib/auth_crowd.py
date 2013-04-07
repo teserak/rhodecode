@@ -1,6 +1,5 @@
 import urllib2
 import base64
-import json
 import formencode
 import rhodecode.lib.auth
 from rhodecode.model import validators as v
@@ -8,6 +7,8 @@ import logging
 log = logging.getLogger(__name__)
 
 from rhodecode.model.db import RhodeCodeSetting
+from rhodecode.lib.compat import json
+
 
 class CrowdServer():
     def __init__(self, *args, **kwargs):
