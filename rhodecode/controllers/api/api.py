@@ -387,7 +387,7 @@ class ApiController(JSONRPCController):
     def create_user(self, apiuser, username, email, password,
                     firstname=Optional(None), lastname=Optional(None),
                     active=Optional(True), admin=Optional(False),
-                    ldap_dn=Optional(None)):
+                    extern_type=Optional(None), extern_name=Optional(None)):
         """
         Create new user
 
@@ -399,7 +399,8 @@ class ApiController(JSONRPCController):
         :param lastname:
         :param active:
         :param admin:
-        :param ldap_dn:
+        :param extern_type:
+        :param extern_name:
         """
 
         if UserModel().get_by_username(username):
@@ -408,8 +409,8 @@ class ApiController(JSONRPCController):
         if UserModel().get_by_email(email, case_insensitive=True):
             raise JSONRPCError("email `%s` already exist" % email)
 
-        if Optional.extract(ldap_dn):
-            # generate temporary password if ldap_dn
+        if Optional.extract(extern_name):
+            # generate temporary password if user is external
             password = PasswordGenerator().gen_password(length=8)
 
         try:
@@ -421,7 +422,8 @@ class ApiController(JSONRPCController):
                 lastname=Optional.extract(lastname),
                 active=Optional.extract(active),
                 admin=Optional.extract(admin),
-                ldap_dn=Optional.extract(ldap_dn)
+                extern_type=Optional.extract(extern_type),
+                extern_name=Optional.extract(extern_name)
             )
             Session().commit()
             return dict(
@@ -436,8 +438,8 @@ class ApiController(JSONRPCController):
     def update_user(self, apiuser, userid, username=Optional(None),
                     email=Optional(None), firstname=Optional(None),
                     lastname=Optional(None), active=Optional(None),
-                    admin=Optional(None), ldap_dn=Optional(None),
-                    password=Optional(None)):
+                    admin=Optional(None), extern_type=Optional(None),
+                    extern_name=Optional(None), password=Optional(None)):
         """
         Updates given user
 
@@ -449,7 +451,8 @@ class ApiController(JSONRPCController):
         :param lastname:
         :param active:
         :param admin:
-        :param ldap_dn:
+        :param extern_name:
+        :param extern_type:
         :param password:
         """
 
@@ -471,7 +474,8 @@ class ApiController(JSONRPCController):
             store_update(lastname, 'lastname')
             store_update(active, 'active')
             store_update(admin, 'admin')
-            store_update(ldap_dn, 'ldap_dn')
+            store_update(extern_name, 'extern_name')
+            store_update(extern_type, 'extern_type')
 
             user = UserModel().update_user(user, **updates)
             Session().commit()

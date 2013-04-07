@@ -268,7 +268,8 @@ OUTPUT::
                 "ip_addresses": "<list_of_ip_addresses_for_user>",
                 "active" :      "<bool>",
                 "admin" :       "<bool>",
-                "ldap_dn" :     "<ldap_dn>",
+                "extern_type":  "<extern_type>",
+		"extern_name":  "<extern_name>",
                 "last_login":   "<last_login>",
                 "permissions": {
                     "global": ["hg.create.repository",
@@ -310,7 +311,8 @@ OUTPUT::
                 "ip_addresses": "<list_of_ip_addresses_for_user>",
                 "active" :      "<bool>",
                 "admin" :       "<bool>",
-                "ldap_dn" :     "<ldap_dn>",
+                "extern_type":  "<extern_type>",
+                "extern_name":  "<extern_name>",
                 "last_login":   "<last_login>",
               },
               …
@@ -338,7 +340,8 @@ INPUT::
                 "lastname" :  "<lastname> = Optional(None)",
                 "active" :    "<bool> = Optional(True)",
                 "admin" :     "<bool> = Optional(False)",
-                "ldap_dn" :   "<ldap_dn> = Optional(None)"
+                "extern_type": "<extern_type> = Optional(None)",
+		"extern_name": "<extern_name> = Optional(None)"
               }
 
 OUTPUT::
@@ -355,7 +358,8 @@ OUTPUT::
                 "emails":    "<list_of_all_additional_emails>",
                 "active" :   "<bool>",
                 "admin" :    "<bool>",
-                "ldap_dn" :  "<ldap_dn>",
+                "extern_type": "<extern_type>",
+                "extern_type": "<extern_name>",
                 "last_login": "<last_login>",
               },
             }
@@ -383,7 +387,8 @@ INPUT::
                 "lastname" :  "<lastname> = Optional(None)",
                 "active" :    "<bool> = Optional(None)",
                 "admin" :     "<bool> = Optional(None)",
-                "ldap_dn" :   "<ldap_dn> = Optional(None)"
+                "extern_type" :   "<extern_type> = Optional(None)"
+                "extern_name" :   "<extern_name> = Optional(None)"
               }
 
 OUTPUT::
@@ -400,7 +405,8 @@ OUTPUT::
                 "emails":    "<list_of_all_additional_emails>",
                 "active" :   "<bool>",
                 "admin" :    "<bool>",
-                "ldap_dn" :  "<ldap_dn>",
+                "extern_type" :  "<extern_type>",
+                "extern_name" :  "<extern_name>",
                 "last_login": "<last_login>",
               },
             }
@@ -468,7 +474,8 @@ OUTPUT::
                                 "emails":    "<list_of_all_additional_emails>",
                                 "active" :   "<bool>",
                                 "admin" :    "<bool>",
-                                "ldap_dn" :  "<ldap_dn>",
+                                "extern_type":  "<extern_type>",
+				"extern_name":  "<extern_name",
                                 "last_login": "<last_login>",
                               },
                               …
@@ -649,7 +656,8 @@ OUTPUT::
                                     "emails":      "<list_of_all_additional_emails>",
                                     "active" :     "<bool>",
                                     "admin" :      "<bool>",
-                                    "ldap_dn" :    "<ldap_dn>",
+                                    "extern_type" :    "<extern_type>",
+				    "extern_name" :    "<extern_name>",
                                     "last_login":  "<last_login>",
                                     "permission" : "repository.(read|write|admin)"
                                   },
@@ -674,7 +682,8 @@ OUTPUT::
                                     "ip_addresses": "<list_of_ip_addresses_for_user>",
                                     "active" :      "<bool>",
                                     "admin" :       "<bool>",
-                                    "ldap_dn" :     "<ldap_dn>",
+                                    "extern_type" :     "<extern_type>",
+				    "extern_name" :     "<extern_name>",
                                     "last_login":   "<last_login>",
                                   },
                                   …

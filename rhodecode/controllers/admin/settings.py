@@ -404,7 +404,8 @@ class SettingsController(BaseController):
         c.user = User.get(self.rhodecode_user.user_id)
         c.perm_user = AuthUser(user_id=self.rhodecode_user.user_id,
                                ip_addr=self.ip_addr)
-        c.ldap_dn = c.user.ldap_dn
+        c.extern_type = c.user.extern_type
+        c.extern_name = c.user.extern_name
 
         if c.user.username == 'default':
             h.flash(_("You can't edit this user since it's"
@@ -437,7 +438,9 @@ class SettingsController(BaseController):
         c.user = User.get(self.rhodecode_user.user_id)
         c.perm_user = AuthUser(user_id=self.rhodecode_user.user_id,
                                ip_addr=self.ip_addr)
-        c.ldap_dn = c.user.ldap_dn
+        c.extern_type = c.user.extern_type
+        c.extern_name = c.user.extern_name
+
         email = self.rhodecode_user.email
         _form = UserForm(edit=True,
                          old_data={'user_id': uid, 'email': email})()
@@ -445,7 +448,7 @@ class SettingsController(BaseController):
         try:
             form_result = _form.to_python(dict(request.POST))
             skip_attrs = ['admin', 'active']  # skip attr for my account
-            if c.ldap_dn:
+            if c.extern_name:
                 #forbid updating username for ldap accounts
                 skip_attrs.append('username')
             UserModel().update(uid, form_result, skip_attrs=skip_attrs)

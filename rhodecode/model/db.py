@@ -221,12 +221,12 @@ class RhodeCodeSetting(Base, BaseModel):
         return settings
 
     @classmethod
-    def get_ldap_settings(cls, cache=False):
+    def get_auth_settings(cls, cache=False):
         ret = cls.query()\
-                .filter(cls.app_settings_name.startswith('ldap_')).all()
+                .filter(cls.app_settings_name.startswith('auth_')).all()
         fd = {}
         for row in ret:
-            fd.update({row.app_settings_name: row.app_settings_value})
+            fd.update({row.app_settings_name:row.app_settings_value})
 
         return fd
 
@@ -328,7 +328,8 @@ class User(Base, BaseModel):
     lastname = Column("lastname", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
     _email = Column("email", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
     last_login = Column("last_login", DateTime(timezone=False), nullable=True, unique=None, default=None)
-    ldap_dn = Column("ldap_dn", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
+    extern_type = Column("extern_type", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
+    extern_name = Column("extern_name", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
     api_key = Column("api_key", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
     inherit_default_permissions = Column("inherit_default_permissions", Boolean(), nullable=False, unique=None, default=True)
 
@@ -505,7 +506,8 @@ class User(Base, BaseModel):
             api_key=user.api_key,
             active=user.active,
             admin=user.admin,
-            ldap_dn=user.ldap_dn,
+            extern_type=user.extern_type,
+            extern_name=user.extern_name,
             last_login=user.last_login,
             ip_addresses=user.ip_addresses
         )

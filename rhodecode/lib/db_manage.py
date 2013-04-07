@@ -482,6 +482,21 @@ class DbManage(object):
         hggit.ui_active = False
         self.sa.add(hggit)
 
+    def create_crowd_options(self, skip_existing=False):
+        """Creates crowd settings"""
+
+        for k, v in [('crowd_active', 'false'),
+                     ('crowd_host', ''),
+                     ('crowd_port', '8095'),
+                     ('crowd_app_name', ''),
+                     ('crowd_app_password', ''),
+                     ('crowd_admin_groups', '')]:
+            if skip_existing and RhodeCodeSetting.get_by_name(k) != None:
+                log.debug('Skipping option %s' % k)
+                continue
+            setting = RhodeCodeSetting(k, v)
+            self.sa.add(setting)
+
     def create_ldap_options(self, skip_existing=False):
         """Creates ldap settings"""
 
@@ -657,6 +672,7 @@ class DbManage(object):
         self.sa.add(sett5)
         self.sa.add(sett6)
 
+        self.create_crowd_options()
         self.create_ldap_options()
         self.create_default_options()
 

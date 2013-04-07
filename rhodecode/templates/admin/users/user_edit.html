@@ -53,33 +53,51 @@
         %endif
         <div class="fields">
              <div class="field">
+	       %if c.extern_name:
+	           <% readonly = "readonly" %>
+		   <% disabled = " disabled" %>
+	           <strong>This user is in an external Source of Record; some details cannot be managed here.</strong>
+	       %else:
+		   <% readonly = None %>
+		   <% disabled = "" %>
+	       %endif:
+	     </div>
+             <div class="field">
                 <div class="label">
                     <label for="username">${_('Username')}:</label>
                 </div>
                 <div class="input">
-                    %if c.ldap_dn:
-                        ${h.text('username',class_='medium disabled', readonly="readonly")}
-                    %else:
-                        ${h.text('username',class_='medium')}
-                    %endif:
+                  ${h.text('username',class_='medium%s' % disabled, readonly=readonly)}
+                </div>
+             </div>
+
+             %if c.extern_name:
+             <div class="field">
+                <div class="label">
+                    <label for="extern_type">${_('Source of Record')}:</label>
+                </div>
+                <div class="input">
+                    ${h.text('extern_type',class_='medium disabled',readonly="readonly")}
                 </div>
              </div>
 
              <div class="field">
                 <div class="label">
-                    <label for="ldap_dn">${_('LDAP DN')}:</label>
+                    <label for="extern_name">${_('Name in Source of Record')}:</label>
                 </div>
                 <div class="input">
-                    ${h.text('ldap_dn',class_='medium disabled',readonly="readonly")}
+                    ${h.text('extern_name',class_='medium disabled',readonly="readonly")}
                 </div>
              </div>
+             %endif:
 
+             %if not c.extern_name:
              <div class="field">
                 <div class="label">
                     <label for="new_password">${_('New password')}:</label>
                 </div>
                 <div class="input">
-                    ${h.password('new_password',class_='medium',autocomplete="off")}
+                    ${h.password('new_password',class_='medium%s' % disabled,autocomplete="off",readonly=readonly)}
                 </div>
              </div>
 
@@ -88,16 +106,17 @@
                     <label for="password_confirmation">${_('New password confirmation')}:</label>
                 </div>
                 <div class="input">
-                    ${h.password('password_confirmation',class_="medium",autocomplete="off")}
+                    ${h.password('password_confirmation',class_="medium%s" % disabled,autocomplete="off",readonly=readonly)}
                 </div>
              </div>
+             %endif:
 
              <div class="field">
                 <div class="label">
                     <label for="firstname">${_('First Name')}:</label>
                 </div>
                 <div class="input">
-                    ${h.text('firstname',class_='medium')}
+                    ${h.text('firstname',class_='medium%s' % disabled, readonly=readonly)}
                 </div>
              </div>
 
@@ -106,7 +125,7 @@
                     <label for="lastname">${_('Last Name')}:</label>
                 </div>
                 <div class="input">
-                    ${h.text('lastname',class_='medium')}
+                    ${h.text('lastname',class_='medium%s' % disabled, readonly=readonly)}
                 </div>
              </div>
 
@@ -115,7 +134,7 @@
                     <label for="email">${_('Email')}:</label>
                 </div>
                 <div class="input">
-                    ${h.text('email',class_='medium')}
+                    ${h.text('email',class_='medium%s' % disabled, readonly=readonly)}
                 </div>
              </div>
 
@@ -132,9 +151,13 @@
                 <div class="label label-checkbox">
                     <label for="admin">${_('Admin')}:</label>
                 </div>
+	       %if c.user.extern_name:
+		<strong>${c.user.admin}</strong>
+               %else:
                 <div class="checkboxes">
                     ${h.checkbox('admin',value=True)}
                 </div>
+               %endif:
              </div>
             <div class="buttons">
               ${h.submit('save',_('Save'),class_="ui-btn large")}

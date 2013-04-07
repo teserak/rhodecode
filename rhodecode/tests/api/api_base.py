@@ -495,8 +495,10 @@ class BaseTestApi(object):
                            ('email', 'new_username'),
                            ('admin', True),
                            ('admin', False),
-                           ('ldap_dn', 'test'),
-                           ('ldap_dn', None),
+                           ('extern_type', 'ldap'),
+                           ('extern_type', None),
+                           ('extern_name', 'test'),
+                           ('extern_name', None),
                            ('active', False),
                            ('active', True),
                            ('password', 'newpass')

@@ -100,7 +100,8 @@ class UserModel(BaseModel):
             raise
 
     def create_or_update(self, username, password, email, firstname='',
-                         lastname='', active=True, admin=False, ldap_dn=None):
+                         lastname='', active=True, admin=False,
+                         extern_type=None, extern_name=None):
         """
         Creates a new instance if not found, or updates current one
 
@@ -112,7 +113,8 @@ class UserModel(BaseModel):
         :param lastname:
         :param active:
         :param admin:
-        :param ldap_dn:
+        :param extern_name:
+        :param extern_type:
         """
 
         from rhodecode.lib.auth import get_crypt_password
@@ -137,7 +139,8 @@ class UserModel(BaseModel):
                 new_user.api_key = generate_api_key(username)
             new_user.email = email
             new_user.active = active
-            new_user.ldap_dn = safe_unicode(ldap_dn) if ldap_dn else None
+            new_user.extern_name = safe_unicode(extern_name) if extern_name else None
+            new_user.extern_type = safe_unicode(extern_type) if extern_type else None
             new_user.name = firstname
             new_user.lastname = lastname
             self.sa.add(new_user)
@@ -167,6 +170,8 @@ class UserModel(BaseModel):
                 new_user.active = attrs.get('active', True)
                 new_user.name = attrs['name'] or generate_email(username)
                 new_user.lastname = attrs['lastname']
+                new_user.extern_name = username
+                new_user.extern_type = 'container'
 
                 self.sa.add(new_user)
                 return new_user
@@ -204,7 +209,8 @@ class UserModel(BaseModel):
                 new_user.api_key = generate_api_key(username)
                 new_user.email = attrs['email'] or generate_email(username)
                 new_user.active = attrs.get('active', True)
-                new_user.ldap_dn = safe_unicode(user_dn)
+                new_user.extern_name = safe_unicode(user_dn)
+                new_user.extern_type = 'ldap'
                 new_user.name = attrs['name']
                 new_user.lastname = attrs['lastname']
 

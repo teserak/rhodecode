@@ -294,13 +294,11 @@ def make_map(config):
     rmap.resource('default', 'defaults',
                   controller='admin/defaults', path_prefix=ADMIN_PREFIX)
 
-    ##ADMIN LDAP SETTINGS
-    rmap.connect('ldap_settings', '%s/ldap' % ADMIN_PREFIX,
-                 controller='admin/ldap_settings', action='ldap_settings',
+    rmap.connect('auth_settings', '%s/auth' % ADMIN_PREFIX,
+                 controller='admin/auth_settings', action='auth_settings',
                  conditions=dict(method=["POST"]))
-
-    rmap.connect('ldap_home', '%s/ldap' % ADMIN_PREFIX,
-                 controller='admin/ldap_settings')
+    rmap.connect('auth_home', '%s/auth' % ADMIN_PREFIX,
+                 controller='admin/auth_settings')
 
     #ADMIN SETTINGS REST ROUTES
     with rmap.submapper(path_prefix=ADMIN_PREFIX,

@@ -1,0 +1,75 @@
+## -*- coding: utf-8 -*-
+<%inherit file="/base/base.html"/>
+
+<%def name="title()">
+    ${_('Authentication Settings')} - ${c.rhodecode_name}
+</%def>
+
+<%def name="breadcrumbs_links()">
+    ${h.link_to(_('Admin'),h.url('admin_home'))}
+    &raquo;
+    ${_('Auth')}
+</%def>
+
+<%def name="page_nav()">
+    ${self.menu('admin')}
+</%def>
+
+<%def name="main()">
+<div class="box">
+    <!-- box / title -->
+    <div class="title">
+        ${self.breadcrumbs()}
+    </div>
+    ${h.form(url('auth_settings'))}
+    <div class="form">
+        %for module in c.auth_plugins.split(","):
+	<% pluginName = c.auth_plugins_shortnames[module] %>
+        <h1>${pluginName}</h1>
+        <div class="fields">
+	    %for setting in c.plugin_settings[module]:
+	        <% fullsetting = "auth_%s_%s" % (pluginName, setting["name"]) %>
+	        <% displayname = (setting["formname"] if ("formname" in setting) else setting["name"]) %>
+	        %if setting["type"] == "password":
+            <div class="field">
+                <div class="label"><label for="${fullsetting}">${_(displayname)}</label></div>
+                <div class="input">${h.password(fullsetting,class_='small')}</div>
+            </div>
+	        %elif setting["type"] in ["string", "int"]:
+            <div class="field">
+                <div class="label"><label for="${fullsetting}">${_(displayname)}</label></div>
+                <div class="input">${h.text(fullsetting,class_='small')}</div>
+            </div>
+	        %elif setting["type"] == "bool":
+            <div class="field">
+                <div class="label label-checkbox"><label for="${fullsetting}">${_(displayname)}</label></div>
+                <div class="checkboxes"><div class="checkbox">${h.checkbox(fullsetting,True,class_='small')}</div></div>
+            </div>
+	        %elif setting["type"] == "select":
+	    <div class="field">
+                <div class="label"><label for="${fullsetting}">${_(displayname)}</label></div>
+                <div class="select">${h.select(fullsetting,setting['values'][0],setting['values'],class_='small')}</div>
+            </div>
+	        %else:
+            <div class="field">
+	        <div class="label"><label for="${fullsetting}">${_(displayname)}</label></div>
+		<div class="input">This field is of type ${setting['type']}, which cannot be displayed. Must be one of [string|int|bool|select].</div>
+            </div>
+	        %endif
+            %endfor
+        </div>
+	%endfor
+	<h1>Authentication Plugins</h1>
+	<div class="fields">
+            <div class="field">
+                <div class="label"><label for="auth_plugins">${_("Authentication Plugins")}</label></div>
+                <div class="input">${h.text("auth_plugins",class_='small')}</div>
+            </div>
+	</div>
+        <div class="buttons">
+          ${h.submit('save',_('Save'),class_="ui-button")}
+        </div>
+    </div>
+    ${h.end_form()}
+</div>
+</%def>

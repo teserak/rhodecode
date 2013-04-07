@@ -518,6 +518,10 @@ div:hover > a.permalink {
     background-image: url("../images/icons/server_key.png");
 }
 
+#header #header-inner #quick li ul li a.crowd, #header #header-inner #quick li ul li a.crowd:hover {
+    background-image: url("../images/icons/crowd.png");
+}
+
 #header #header-inner #quick li ul li a.fork, #header #header-inner #quick li ul li a.fork:hover {
     background-image: url("../images/icons/arrow_divide.png");
 }

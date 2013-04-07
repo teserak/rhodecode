@@ -27,6 +27,7 @@ import random
 import logging
 import traceback
 import hashlib
+import importlib
 
 from tempfile import _RandomNameSequence
 from decorator import decorator
@@ -40,10 +41,7 @@ from rhodecode import __platform__, is_windows, is_unix
 from rhodecode.model.meta import Session
 
 from rhodecode.lib.utils2 import str2bool, safe_unicode
-from rhodecode.lib.exceptions import LdapPasswordError, LdapUsernameError,\
-    LdapImportError
 from rhodecode.lib.utils import get_repo_slug, get_repos_group_slug
-from rhodecode.lib.auth_ldap import AuthLdap
 
 from rhodecode.model import meta
 from rhodecode.model.user import UserModel
@@ -52,6 +50,7 @@ from rhodecode.lib.caching_query import FromCache
 
 log = logging.getLogger(__name__)
 
+import json
 
 class PasswordGenerator(object):
     """
@@ -83,6 +82,108 @@ class PasswordGenerator(object):
             type_ = self.ALPHABETS_FULL
         self.passwd = ''.join([random.choice(type_) for _ in xrange(length)])
         return self.passwd
+
+class RhodeCodeAuthPlugin(object):
+    @classmethod
+    def name():
+        """
+        Returns the name of this authentication plugin.
+
+        returns: string
+        """
+        raise Exception("Not implemented in base class")
+
+    @classmethod
+    def settings():
+        """
+        Return a dictionary of the form:
+        {
+            "OPTION_NAME": {
+                "type": "[bool|password|string|int|select|multiselect]",
+                ["values": ["opt1", "opt2", ...]]
+                "validator": "expr"
+                "description": "A short description of the option" [,
+                "default": Default Value],
+                ["formname": "Friendly Name for Forms"]
+            } [, ...]
+        }
+
+        This is used to interrogate the authentication plugin as to what
+        settings it expects to be present and configured.
+
+        'type' is a shorthand notation for what kind of value this option is.
+        This is primarily used by the auth web form to control how the option
+        is configured.
+                bool : checkbox
+                password : password input box
+                string : input box
+                select : single select dropdown
+                multiselect : multiple select choice dialog, returned to you
+                    as a single comma delimited string
+
+        'validator' is an instantiated form field validator object, ala
+        formencode. Feel free to use the rhodecode validators here as well.
+        """
+        raise Exception("Not implemented in base class")
+
+    def plugin_settings(self):
+        """
+        This method is called by the authentication framework, not the .settings()
+        method. This method adds a few default settings (e.g., "active"), so that
+        plugin authors don't have to maintain a bunch of boilerplate.
+
+        OVERRIDING THIS METHOD WILL CAUSE YOUR PLUGIN TO FAIL.
+        """
+
+        # FIXME : This is here because it will create a circular dependency if I put
+        # it at the toplevel, between this and the validators module. This
+        # RhodeCodeAuthPlugin class should be in a different place, I'm guessing.
+        from rhodecode.model import validators as v
+
+        rcsettings = self.settings()
+        rcsettings.insert(0,
+            {
+                "name": "enabled",
+                "validator": v.StringBoolean(if_missing=False),
+                "type": "bool",
+                "description": "Enable or Disable this Authentication Plugin",
+                "formname": "Enabled"
+                }
+        )
+        return rcsettings
+
+    @classmethod
+    def use_fake_password():
+        """
+        Return a boolean that indicates whether or not we should set the user's
+        password to a random value when it is authenticated by this plugin.
+        If your plugin provides authentication, then you will generally want this.
+
+        returns: boolean
+        """
+        raise Exception("Not implemented in base class")
+
+    @classmethod
+    def auth(userobj, user, passwd, settings):
+        """
+        Given a user object (which may be null), user name, a plaintext password,
+        and a settings object (containing all the keys needed as listed in settings()),
+        authenticate this user's login attempt.
+
+        Return None on failure. On success, return a dictionary of the form:
+
+        {
+            "name": "short user name",
+            "firstname": "first name",
+            "lastname": "last name",
+            "email": "email address",
+            "groups": ["list", "of", "groups"],
+            "extern_name": "name in external source of record",
+            "admin": True|False,
+            "active": True|False
+        }
+        """
+        raise Exception("not implemented in base class")
 
 
 class RhodeCodeCrypto(object):
@@ -125,14 +226,12 @@ class RhodeCodeCrypto(object):
             raise Exception('Unknown or unsupported platform %s' \
                             % __platform__)
 
-
 def get_crypt_password(password):
     return RhodeCodeCrypto.hash_string(password)
 
 
 def check_password(password, hashed):
     return RhodeCodeCrypto.hash_check(password, hashed)
-
 
 def generate_api_key(str_, salt=None):
     """
@@ -157,6 +256,27 @@ def authfunc(environ, username, password):
     """
     return authenticate(username, password)
 
+def loadplugin(plugin):
+    """
+    Load and return the authentication plugin in the module named by plugin
+    (e.g., plugin='rhodecode.lib.auth_rhodecode'). Returns an instantiated
+    RhodeCodeAuthPlugin subclass on success, raises exceptions on failure.
+
+    raises:
+        AttributeError -- no RhodeCodeAuthPlugin class in the module
+        TypeError -- if the RhodeCodeAuthPlugin is not a subclass of ours
+        ImportError -- if we couldn't import the plugin at all
+    """
+    log.debug("Importing %s" % plugin)
+    module = importlib.import_module(plugin)
+    log.debug("Loaded auth plugin from %s (%s in %s)" % (plugin, module.__name__, module.__file__))
+    pluginclass = getattr(module, "RhodeCodeAuthPlugin")
+    if not issubclass(pluginclass, RhodeCodeAuthPlugin):
+        raise TypeError("Authentication class %s.RhodeCodeAuthPlugin is not a subclass of rhodecode.lib.auth.RhodeCodeAuthPlugin" % plugin)
+    plugin = pluginclass()
+    if (plugin.plugin_settings.im_func != RhodeCodeAuthPlugin.plugin_settings.im_func):
+        raise TypeError("Authentication class %s.RhodeCodeAuthPlugin has overriden the plugin_settings method, which is forbidden." % plugin)
+    return plugin
 
 def authenticate(username, password):
     """
@@ -170,83 +290,54 @@ def authenticate(username, password):
 
     user_model = UserModel()
     user = User.get_by_username(username)
+    if not user:
+        user = User.get_by_username(username, case_insensitive=True)
 
-    log.debug('Authenticating user using RhodeCode account')
-    if user is not None and not user.ldap_dn:
-        if user.active:
-            if user.username == 'default' and user.active:
-                log.info('user %s authenticated correctly as anonymous user' %
-                         username)
-                return True
+    auth_plugins = RhodeCodeSetting.get_by_name("auth_plugins").app_settings_value
 
-            elif user.username == username and check_password(password,
-                                                              user.password):
-                log.info('user %s authenticated correctly' % username)
-                return True
+    for module in auth_plugins.split(","):
+        try:
+            plugin = loadplugin(module)
+        except (ImportError, AttributeError, TypeError), e:
+            raise ImportError('Failed to load authentication module %s : %s' % (module, str(e)))
+            continue
+        pluginConfigSettings = plugin.plugin_settings()
+        pluginName = plugin.name()
+        if (user) and ( user.extern_type ) and ( user.extern_type != pluginName ):
+            continue
+        pluginSettings = {}
+        for v in pluginConfigSettings:
+            pluginSettings[v["name"]] = RhodeCodeSetting.\
+                get_by_name("auth_%s_%s" % (pluginName, v["name"])).app_settings_value
+        log.debug(json.dumps(pluginSettings, indent=4, sort_keys=True))
+        if pluginSettings["enabled"] == "False":
+            log.info("Authentication plugin %s is disabled, skipping for %s" % (module, username))
+            continue
+        pluginUser = plugin.auth(user, username, password, pluginSettings)
+        if pluginUser:
+            if plugin.use_fake_password():
+                # Randomize the PW because we don't need it, but don't want them blank either
+                password = PasswordGenerator().gen_password(length=8)
+            if (not 'active' in pluginUser):
+                pluginUser['active'] = ('hg.register.auto_activate' in User\
+                                            .get_by_username('default').AuthUser.permissions['global'])
+            if not pluginUser['active']:
+                log.warning("User %s authenticated against %s, but is inactive" % (username, pluginName))
+                return False
+            user_model.create_or_update(
+                username=username,
+                password=password,
+                email=pluginUser["email"],
+                firstname=pluginUser["firstname"],
+                lastname=pluginUser["lastname"],
+                active=pluginUser["active"],
+                admin=pluginUser["admin"],
+                extern_name=pluginUser["extern_name"],
+                extern_type=pluginName)
+            Session().commit()
+            return True
         else:
-            log.warning('user %s tried auth but is disabled' % username)
-
-    else:
-        log.debug('Regular authentication failed')
-        user_obj = User.get_by_username(username, case_insensitive=True)
-
-        if user_obj is not None and not user_obj.ldap_dn:
-            log.debug('this user already exists as non ldap')
-            return False
-
-        ldap_settings = RhodeCodeSetting.get_ldap_settings()
-        #======================================================================
-        # FALLBACK TO LDAP AUTH IF ENABLE
-        #======================================================================
-        if str2bool(ldap_settings.get('ldap_active')):
-            log.debug("Authenticating user using ldap")
-            kwargs = {
-                  'server': ldap_settings.get('ldap_host', ''),
-                  'base_dn': ldap_settings.get('ldap_base_dn', ''),
-                  'port': ldap_settings.get('ldap_port'),
-                  'bind_dn': ldap_settings.get('ldap_dn_user'),
-                  'bind_pass': ldap_settings.get('ldap_dn_pass'),
-                  'tls_kind': ldap_settings.get('ldap_tls_kind'),
-                  'tls_reqcert': ldap_settings.get('ldap_tls_reqcert'),
-                  'ldap_filter': ldap_settings.get('ldap_filter'),
-                  'search_scope': ldap_settings.get('ldap_search_scope'),
-                  'attr_login': ldap_settings.get('ldap_attr_login'),
-                  'ldap_version': 3,
-                  }
-            log.debug('Checking for ldap authentication')
-            try:
-                aldap = AuthLdap(**kwargs)
-                (user_dn, ldap_attrs) = aldap.authenticate_ldap(username,
-                                                                password)
-                log.debug('Got ldap DN response %s' % user_dn)
-
-                get_ldap_attr = lambda k: ldap_attrs.get(ldap_settings\
-                                                           .get(k), [''])[0]
-
-                user_attrs = {
-                 'name': safe_unicode(get_ldap_attr('ldap_attr_firstname')),
-                 'lastname': safe_unicode(get_ldap_attr('ldap_attr_lastname')),
-                 'email': get_ldap_attr('ldap_attr_email'),
-                 'active': 'hg.register.auto_activate' in User\
-                    .get_by_username('default').AuthUser.permissions['global']
-                }
-
-                # don't store LDAP password since we don't need it. Override
-                # with some random generated password
-                _password = PasswordGenerator().gen_password(length=8)
-                # create this user on the fly if it doesn't exist in rhodecode
-                # database
-                if user_model.create_ldap(username, _password, user_dn,
-                                          user_attrs):
-                    log.info('created new ldap user %s' % username)
-
-                Session().commit()
-                return True
-            except (LdapUsernameError, LdapPasswordError, LdapImportError):
-                pass
-            except (Exception,):
-                log.error(traceback.format_exc())
-                pass
+            log.warning("User %s failed to authenticate against %s" % (username, pluginName))
     return False
 
 
@@ -258,7 +349,9 @@ def login_container_auth(username):
             'lastname': None,
             'email': None,
             'active': 'hg.register.auto_activate' in User\
-               .get_by_username('default').AuthUser.permissions['global']
+               .get_by_username('default').AuthUser.permissions['global'],
+            'extern_name': username,
+            'extern_type': 'container'
         }
         user = UserModel().create_for_container_auth(username, user_attrs)
         if not user:
