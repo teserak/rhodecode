@@ -62,9 +62,9 @@ class CrowdServer(object):
             _headers["Authorization"] = "Basic %s" % authstring
         if headers:
             _headers.update(headers)
-        log.debug("Sent crowd: \n{}".format(formatted_json.dumps({"url": url,
-                                                        "body": body,
-                                                        "headers": _headers})))
+        log.debug("Sent crowd: \n%s"
+                  % (formatted_json.dumps({"url": url, "body": body,
+                                           "headers": _headers})))
         request = urllib2.Request(url, body, _headers)
         if method:
             request.get_method = lambda: method
@@ -95,15 +95,15 @@ class CrowdServer(object):
     def user_auth(self, username, password):
         """Authenticate a user against crowd. Returns brief information about
         the user."""
-        url = ("{}/rest/usermanagement/{}/authentication?username={}"
-               "".format(self._uri, self._version, username))
+        url = ("%s/rest/usermanagement/{}/authentication?username=%s"
+               % (self._uri, self._version, username))
         body = json.dumps({"value": password})
         return self._request(url, body)
 
     def user_groups(self, username):
         """Retrieve a list of groups to which this user belongs."""
-        url = ("{}/rest/usermanagement/{}/user/group/nested?username={}"
-               "".format(self._uri, self._version, username))
+        url = ("%s/rest/usermanagement/{}/user/group/nested?username=%s"
+               % (self._uri, self._version, username))
         return self._request(url)
 
 
@@ -205,16 +205,16 @@ class RhodeCodeAuthPlugin(rhodecode.lib.auth.RhodeCodeAuthPlugin):
             "admin": True|False
         }
         """
-        log.debug("Crowd settings: \n{}".format(formatted_json.dumps(settings)))
+        log.debug("Crowd settings: \n%s" % (formatted_json.dumps(settings)))
         server = CrowdServer(**settings)
         server.set_credentials(settings["app_name"], settings["app_password"])
         crowdUser = server.user_auth(user, passwd)
-        log.debug("Crowd returned: \n{}".format(formatted_json.dumps(crowdUser)))
+        log.debug("Crowd returned: \n%s" % (formatted_json.dumps(crowdUser)))
         if not crowdUser["status"]:
             return None
 
         res = server.user_groups(crowdUser["name"])
-        log.debug("Crowd groups: \n{}".format(formatted_json.dumps(res)))
+        log.debug("Crowd groups: \n%s" % (formatted_json.dumps(res)))
         crowdUser["groups"] = [x["name"] for x in res["groups"]]
 
         rcuser = {}
@@ -229,5 +229,5 @@ class RhodeCodeAuthPlugin(rhodecode.lib.auth.RhodeCodeAuthPlugin):
             if group in rcuser["groups"]:
                 rcuser["admin"] = True
 
-        log.debug("Final crowd user object: \n{}".format(formatted_json.dumps(rcuser)))
+        log.debug("Final crowd user object: \n%s" % (formatted_json.dumps(rcuser)))
         return rcuser
