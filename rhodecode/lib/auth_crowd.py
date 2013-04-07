@@ -1,13 +1,13 @@
+import logging
 import functools
 import urllib2
 import base64
 import rhodecode.lib.auth
 from rhodecode.model import validators as v
-import logging
+from rhodecode.lib.compat import json
+
 log = logging.getLogger(__name__)
 
-from rhodecode.model.db import RhodeCodeSetting
-from rhodecode.lib.compat import json
 
 # alias for formatted json
 formatted_json = functools.partial(json, indent=4, sort_keys=True)
