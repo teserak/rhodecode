@@ -26,14 +26,14 @@
                 </div>
             </div>
             <div class="fields">
-	       %if c.extern_name:
-	           <% readonly = "readonly" %>
-		   <% disabled = " disabled" %>
-	           <strong>Your user is in an external Source of Record; some details cannot be managed here.</strong>
-	       %else:
-		   <% readonly = None %>
-		   <% disabled = "" %>
-	       %endif:
+           %if c.extern_name:
+               <% readonly = "readonly" %>
+           <% disabled = " disabled" %>
+               <strong>Your user is in an external Source of Record; some details cannot be managed here.</strong>
+           %else:
+           <% readonly = None %>
+           <% disabled = "" %>
+           %endif:
                  <div class="field">
                     <div class="label">
                         <label for="username">${_('Username')}:</label>

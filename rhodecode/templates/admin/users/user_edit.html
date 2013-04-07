@@ -53,15 +53,15 @@
         %endif
         <div class="fields">
              <div class="field">
-	       %if c.extern_name:
-	           <% readonly = "readonly" %>
-		   <% disabled = " disabled" %>
-	           <strong>This user is in an external Source of Record; some details cannot be managed here.</strong>
-	       %else:
-		   <% readonly = None %>
-		   <% disabled = "" %>
-	       %endif:
-	     </div>
+           %if c.extern_name:
+               <% readonly = "readonly" %>
+           <% disabled = " disabled" %>
+               <strong>This user is in an external Source of Record; some details cannot be managed here.</strong>
+           %else:
+           <% readonly = None %>
+           <% disabled = "" %>
+           %endif:
+         </div>
              <div class="field">
                 <div class="label">
                     <label for="username">${_('Username')}:</label>
@@ -151,8 +151,8 @@
                 <div class="label label-checkbox">
                     <label for="admin">${_('Admin')}:</label>
                 </div>
-	       %if c.user.extern_name:
-		<strong>${c.user.admin}</strong>
+           %if c.user.extern_name:
+        <strong>${c.user.admin}</strong>
                %else:
                 <div class="checkboxes">
                     ${h.checkbox('admin',value=True)}

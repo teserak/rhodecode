@@ -49,4 +49,3 @@ class RhodeCodeAuthPlugin(rhodecode.lib.auth.RhodeCodeAuthPlugin):
         else:
             log.warning('user %s tried auth but is disabled' % username)
         return False
-

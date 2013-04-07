@@ -269,7 +269,7 @@ OUTPUT::
                 "active" :      "<bool>",
                 "admin" :       "<bool>",
                 "extern_type":  "<extern_type>",
-		"extern_name":  "<extern_name>",
+        "extern_name":  "<extern_name>",
                 "last_login":   "<last_login>",
                 "permissions": {
                     "global": ["hg.create.repository",
@@ -341,7 +341,7 @@ INPUT::
                 "active" :    "<bool> = Optional(True)",
                 "admin" :     "<bool> = Optional(False)",
                 "extern_type": "<extern_type> = Optional(None)",
-		"extern_name": "<extern_name> = Optional(None)"
+        "extern_name": "<extern_name> = Optional(None)"
               }
 
 OUTPUT::
@@ -475,7 +475,7 @@ OUTPUT::
                                 "active" :   "<bool>",
                                 "admin" :    "<bool>",
                                 "extern_type":  "<extern_type>",
-				"extern_name":  "<extern_name",
+                "extern_name":  "<extern_name",
                                 "last_login": "<last_login>",
                               },
                               …
@@ -657,7 +657,7 @@ OUTPUT::
                                     "active" :     "<bool>",
                                     "admin" :      "<bool>",
                                     "extern_type" :    "<extern_type>",
-				    "extern_name" :    "<extern_name>",
+                    "extern_name" :    "<extern_name>",
                                     "last_login":  "<last_login>",
                                     "permission" : "repository.(read|write|admin)"
                                   },
@@ -683,7 +683,7 @@ OUTPUT::
                                     "active" :      "<bool>",
                                     "admin" :       "<bool>",
                                     "extern_type" :     "<extern_type>",
-				    "extern_name" :     "<extern_name>",
+                    "extern_name" :     "<extern_name>",
                                     "last_login":   "<last_login>",
                                   },
                                   …
