@@ -359,7 +359,7 @@ OUTPUT::
                 "active" :   "<bool>",
                 "admin" :    "<bool>",
                 "extern_type": "<extern_type>",
-                "extern_type": "<extern_name>",
+                "extern_name": "<extern_name>",
                 "last_login": "<last_login>",
               },
             }
