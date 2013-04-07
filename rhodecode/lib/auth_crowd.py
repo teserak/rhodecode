@@ -1,6 +1,6 @@
+import functools
 import urllib2
 import base64
-import formencode
 import rhodecode.lib.auth
 from rhodecode.model import validators as v
 import logging
@@ -9,15 +9,20 @@ log = logging.getLogger(__name__)
 from rhodecode.model.db import RhodeCodeSetting
 from rhodecode.lib.compat import json
 
+# alias for formatted json
+formatted_json = functools.partial(json, indent=4, sort_keys=True)
 
-class CrowdServer():
+
+class CrowdServer(object):
     def __init__(self, *args, **kwargs):
-        """Create a new CrowdServer object that points to IP/Address 'host',
+        """
+        Create a new CrowdServer object that points to IP/Address 'host',
         on the given port, and using the given method (https/http). user and
         passwd can be set here or with set_credentials. If unspecified,
         "version" defaults to "latest".
 
-        example:
+        example::
+
             cserver = CrowdServer(host="127.0.0.1",
                                   port="8095",
                                   user="some_app",
@@ -57,15 +62,13 @@ class CrowdServer():
             _headers["Authorization"] = "Basic %s" % authstring
         if headers:
             _headers.update(headers)
-        log.debug("Sent crowd: \n{}".format(json.dumps({"url": url, "body": body, "headers": _headers}, indent=4, sort_keys=True)))
+        log.debug("Sent crowd: \n{}".format(formatted_json.dumps({"url": url,
+                                                        "body": body,
+                                                        "headers": _headers})))
         request = urllib2.Request(url, body, _headers)
         if method:
             request.get_method = lambda: method
-        #print "="*32
-        #print "%s %s" % (request.get_method(), url)
-        #print body
-        #print headers
-        #print "="*32
+
         global msg
         msg = ""
         try:
@@ -102,6 +105,7 @@ class CrowdServer():
         url = ("{}/rest/usermanagement/{}/user/group/nested?username={}"
                "".format(self._uri, self._version, username))
         return self._request(url)
+
 
 class RhodeCodeAuthPlugin(rhodecode.lib.auth.RhodeCodeAuthPlugin):
     def name(self):
@@ -201,16 +205,16 @@ class RhodeCodeAuthPlugin(rhodecode.lib.auth.RhodeCodeAuthPlugin):
             "admin": True|False
         }
         """
-        log.debug("Crowd settings: \n{}".format(json.dumps(settings, indent=4, sort_keys=True)))
+        log.debug("Crowd settings: \n{}".format(formatted_json.dumps(settings)))
         server = CrowdServer(**settings)
         server.set_credentials(settings["app_name"], settings["app_password"])
         crowdUser = server.user_auth(user, passwd)
-        log.debug("Crowd returned: \n{}".format(json.dumps(crowdUser, indent=4, sort_keys=True)))
+        log.debug("Crowd returned: \n{}".format(formatted_json.dumps(crowdUser)))
         if not crowdUser["status"]:
             return None
 
         res = server.user_groups(crowdUser["name"])
-        log.debug("Crowd groups: \n{}".format(json.dumps(res, indent=4, sort_keys=True)))
+        log.debug("Crowd groups: \n{}".format(formatted_json.dumps(res)))
         crowdUser["groups"] = [x["name"] for x in res["groups"]]
 
         rcuser = {}
@@ -225,5 +229,5 @@ class RhodeCodeAuthPlugin(rhodecode.lib.auth.RhodeCodeAuthPlugin):
             if group in rcuser["groups"]:
                 rcuser["admin"] = True
 
-        log.debug("Final crowd user object: \n{}".format(json.dumps(rcuser, indent=4, sort_keys=True)))
+        log.debug("Final crowd user object: \n{}".format(formatted_json.dumps(rcuser)))
         return rcuser
