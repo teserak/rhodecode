@@ -96,17 +96,18 @@ class RhodeCodeAuthPlugin(object):
     @classmethod
     def settings():
         """
-        Return a dictionary of the form:
-        {
-            "OPTION_NAME": {
-                "type": "[bool|password|string|int|select|multiselect]",
+        Return a list of the form:
+        [
+            {
+                "name": "OPTION_NAME",
+                "type": "[bool|password|string|int|select]",
                 ["values": ["opt1", "opt2", ...]]
                 "validator": "expr"
                 "description": "A short description of the option" [,
                 "default": Default Value],
                 ["formname": "Friendly Name for Forms"]
             } [, ...]
-        }
+        ]
 
         This is used to interrogate the authentication plugin as to what
         settings it expects to be present and configured.
@@ -118,8 +119,6 @@ class RhodeCodeAuthPlugin(object):
                 password : password input box
                 string : input box
                 select : single select dropdown
-                multiselect : multiple select choice dialog, returned to you
-                    as a single comma delimited string
 
         'validator' is an instantiated form field validator object, ala
         formencode. Feel free to use the rhodecode validators here as well.
