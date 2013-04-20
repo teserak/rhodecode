@@ -4,7 +4,7 @@ import datetime
 import urllib
 import urllib2
 
-from rhodecode.lib.vcs.backends.base import BaseRepository
+from rhodecode.lib.vcs.backends.base import BaseRepository, CollectionGenerator
 from .workdir import MercurialWorkdir
 from .changeset import MercurialChangeset
 from .inmemory import MercurialInMemoryChangeset
@@ -18,8 +18,9 @@ from rhodecode.lib.vcs.utils.lazy import LazyProperty
 from rhodecode.lib.vcs.utils.ordered_dict import OrderedDict
 from rhodecode.lib.vcs.utils.paths import abspath
 
-from rhodecode.lib.vcs.utils.hgcompat import ui, nullid, match, patch, diffopts, clone, \
-    get_contact, pull, localrepository, RepoLookupError, Abort, RepoError, hex
+from rhodecode.lib.vcs.utils.hgcompat import ui, nullid, match, patch, \
+    diffopts, clone, get_contact, pull, localrepository, RepoLookupError, \
+    Abort, RepoError, hex, scmutil
 
 
 class MercurialRepository(BaseRepository):
@@ -472,20 +473,23 @@ class MercurialRepository(BaseRepository):
                                   ' this repository' % branch_name)
         if end_pos is not None:
             end_pos += 1
+        #filter branches
+        filter_ = []
+        if branch_name:
+            filter_.append('branch("%s")' % (branch_name))
 
-        slice_ = reversed(self.revisions[start_pos:end_pos]) if reverse else \
-            self.revisions[start_pos:end_pos]
+        if start_date:
+            filter_.append('date(">%s")' % start_date)
+        if end_date:
+            filter_.append('date("<%s")' % end_date)
+        if filter_:
+            revisions = scmutil.revrange(self._repo, filter_)
+        else:
+            revisions = self.revisions
+        revs = reversed(revisions[start_pos:end_pos]) if reverse else \
+                revisions[start_pos:end_pos]
 
-        for id_ in slice_:
-            cs = self.get_changeset(id_)
-            if branch_name and cs.branch != branch_name:
-                continue
-            if start_date and cs.date < start_date:
-                continue
-            if end_date and cs.date > end_date:
-                continue
-
-            yield cs
+        return CollectionGenerator(self, revs)
 
     def pull(self, url):
         """

@@ -544,10 +544,6 @@ div:hover > a.permalink {
     background-image: url("../images/icons/search_16.png");
 }
 
-#header #header-inner #quick li ul li a.shortlog, #header #header-inner #quick li ul li a.shortlog:hover {
-    background-image: url("../images/icons/clock_16.png");
-}
-
 #header #header-inner #quick li ul li a.delete, #header #header-inner #quick li ul li a.delete:hover {
     background-image: url("../images/icons/delete.png");
 }
@@ -2594,6 +2590,7 @@ h3.files_location {
 }
 
 #graph_content .comments-container,
+#shortlog_data .comments-container,
 #graph_content .logtags {
     display: block;
     float: left;
@@ -2692,7 +2689,13 @@ h3.files_location {
     padding: 5px 0;
 }
 
-#graph_content .comments-cnt a {
+#shortlog_data .comments-cnt {
+    color: rgb(136, 136, 136);
+    padding: 3px 0;
+}
+
+#graph_content .comments-cnt a,
+#shortlog_data .comments-cnt a {
     background-image: url('../images/icons/comments.png');
     background-repeat: no-repeat;
     background-position: 100% 50%;
@@ -2761,12 +2764,6 @@ h3.files_location {
     margin: 0px 2px;
 }
 
-#shortlog_data .branchtag,
-#shortlog_data .booktag,
-#shortlog_data .tagtag {
-    margin: 0px 2px;
-}
-
 .branchtag,
 .tagtag,
 .booktag,
@@ -2795,7 +2792,8 @@ h3.files_location {
 }
 
 .right .logtags .branchtag,
-.logtags .tagtag,
+.right .logtags .tagtag,
+.right .logtags .booktag,
 .right .merge {
     float: right;
     line-height: 1em;

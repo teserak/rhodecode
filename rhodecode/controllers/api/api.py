@@ -40,8 +40,8 @@ from rhodecode.model.scm import ScmModel
 from rhodecode.model.repo import RepoModel
 from rhodecode.model.user import UserModel
 from rhodecode.model.users_group import UserGroupModel
-from rhodecode.model.permission import PermissionModel
-from rhodecode.model.db import Repository, RhodeCodeSetting, UserIpMap
+from rhodecode.model.db import Repository, RhodeCodeSetting, UserIpMap,\
+    Permission
 from rhodecode.lib.compat import json
 
 log = logging.getLogger(__name__)
@@ -139,7 +139,7 @@ def get_perm_or_error(permid):
 
     :param userid:
     """
-    perm = PermissionModel().get_permission_by_name(permid)
+    perm = Permission.get_by_key(permid)
     if perm is None:
         raise JSONRPCError('permission `%s` does not exist' % (permid))
     return perm
@@ -220,9 +220,8 @@ class ApiController(JSONRPCController):
                 raise JSONRPCError('repository `%s` does not exist' % (repoid))
 
         try:
-            invalidated_keys = ScmModel().mark_for_invalidation(repo.repo_name)
-            return ('Cache for repository `%s` was invalidated: '
-                    'invalidated cache keys: %s' % (repoid, invalidated_keys))
+            ScmModel().mark_for_invalidation(repo.repo_name)
+            return ('Caches of repository `%s` was invalidated' % repoid)
         except Exception:
             log.error(traceback.format_exc())
             raise JSONRPCError(
@@ -541,12 +540,15 @@ class ApiController(JSONRPCController):
         return result
 
     @HasPermissionAllDecorator('hg.admin')
-    def create_users_group(self, apiuser, group_name, active=Optional(True)):
+    def create_users_group(self, apiuser, group_name,
+                           owner=Optional(OAttr('apiuser')),
+                           active=Optional(True)):
         """
         Creates an new usergroup
 
         :param apiuser:
         :param group_name:
+        :param owner:
         :param active:
         """
 
@@ -554,8 +556,14 @@ class ApiController(JSONRPCController):
             raise JSONRPCError("user group `%s` already exist" % group_name)
 
         try:
+            if isinstance(owner, Optional):
+                owner = apiuser.user_id
+
+            owner = get_user_or_error(owner)
             active = Optional.extract(active)
-            ug = UserGroupModel().create(name=group_name, active=active)
+            ug = UserGroupModel().create(name=group_name,
+                                         owner=owner,
+                                         active=active)
             Session().commit()
             return dict(
                 msg='created new user group `%s`' % group_name,

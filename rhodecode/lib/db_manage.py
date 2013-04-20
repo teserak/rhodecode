@@ -37,13 +37,15 @@ from rhodecode.lib.utils import ask_ok
 from rhodecode.model import init_model
 from rhodecode.model.db import User, Permission, RhodeCodeUi, \
     RhodeCodeSetting, UserToPerm, DbMigrateVersion, RepoGroup, \
-    UserRepoGroupToPerm
+    UserRepoGroupToPerm, CacheInvalidation, UserGroup
 
 from sqlalchemy.engine import create_engine
 from rhodecode.model.repos_group import ReposGroupModel
 #from rhodecode.model import meta
 from rhodecode.model.meta import Session, Base
 from rhodecode.model.repo import RepoModel
+from rhodecode.model.permission import PermissionModel
+from rhodecode.model.users_group import UserGroupModel
 
 
 log = logging.getLogger(__name__)
@@ -89,7 +91,7 @@ class DbManage(object):
         else:
             destroy = ask_ok('Are you sure to destroy old database ? [y/n]')
         if not destroy:
-            sys.exit('Nothing done')
+            sys.exit('Nothing tables created')
         if destroy:
             Base.metadata.drop_all()
 
@@ -127,7 +129,7 @@ class DbManage(object):
                          'sure You backed up your database before. '
                          'Continue ? [y/n]')
         if not upgrade:
-            sys.exit('Nothing done')
+            sys.exit('No upgrade performed')
 
         repository_path = jn(dn(dn(dn(os.path.realpath(__file__)))),
                              'rhodecode/lib/dbmigrate')
@@ -148,6 +150,10 @@ class DbManage(object):
 
         if curr_version == __dbversion__:
             sys.exit('This database is already at the newest version')
+
+        # clear cache keys
+        log.info("Clearing cache keys now...")
+        CacheInvalidation.clear_cache()
 
         #======================================================================
         # UPGRADE STEPS
@@ -272,6 +278,7 @@ class DbManage(object):
                            'in admin panel')
 
             def step_8(self):
+                self.klass.create_permissions()
                 self.klass.populate_default_permissions()
                 self.klass.create_default_options(skip_existing=True)
                 Session().commit()
@@ -291,6 +298,20 @@ class DbManage(object):
 
             def step_11(self):
                 self.klass.update_repo_info()
+
+            def step_12(self):
+                self.klass.create_permissions()
+                Session().commit()
+
+                self.klass.populate_default_permissions()
+                Session().commit()
+
+                #fix all usergroups
+                ug_model = UserGroupModel()
+                for ug in UserGroup.get_all():
+                    perm_obj = ug_model._create_default_perms(ug)
+                    Session().add(perm_obj)
+                Session().commit()
 
         upgrade_steps = [0] + range(curr_version + 1, __dbversion__ + 1)
 
@@ -531,7 +552,7 @@ class DbManage(object):
             self.sa.add(setting)
 
     def fixup_groups(self):
-        def_usr = User.get_by_username('default')
+        def_usr = User.get_default_user()
         for g in RepoGroup.query().all():
             g.group_name = g.get_new_name(g.name)
             self.sa.add(g)
@@ -543,7 +564,8 @@ class DbManage(object):
 
             if default is None:
                 log.debug('missing default permission for group %s adding' % g)
-                ReposGroupModel()._create_default_perms(g)
+                perm_obj = ReposGroupModel()._create_default_perms(g)
+                self.sa.add(perm_obj)
 
     def reset_permissions(self, username):
         """
@@ -560,7 +582,7 @@ class DbManage(object):
         u2p = UserToPerm.query()\
             .filter(UserToPerm.user == default_user).all()
         fixed = False
-        if len(u2p) != len(User.DEFAULT_PERMISSIONS):
+        if len(u2p) != len(Permission.DEFAULT_USER_PERMISSIONS):
             for p in u2p:
                 Session().delete(p)
             fixed = True
@@ -693,38 +715,21 @@ class DbManage(object):
                               firstname='Anonymous', lastname='User')
 
     def create_permissions(self):
+        """
+        Creates all permissions defined in the system
+        """
         # module.(access|create|change|delete)_[name]
         # module.(none|read|write|admin)
-
-        for p in Permission.PERMS:
-            if not Permission.get_by_key(p[0]):
-                new_perm = Permission()
-                new_perm.permission_name = p[0]
-                new_perm.permission_longname = p[0]
-                self.sa.add(new_perm)
+        log.info('creating permissions')
+        PermissionModel(self.sa).create_permissions()
 
     def populate_default_permissions(self):
+        """
+        Populate default permissions. It will create only the default
+        permissions that are missing, and not alter already defined ones
+        """
         log.info('creating default user permissions')
-
-        default_user = User.get_by_username('default')
-
-        for def_perm in User.DEFAULT_PERMISSIONS:
-
-            perm = self.sa.query(Permission)\
-             .filter(Permission.permission_name == def_perm)\
-             .scalar()
-            if not perm:
-                raise Exception(
-                  'CRITICAL: permission %s not found inside database !!'
-                  % def_perm
-                )
-            if not UserToPerm.query()\
-                .filter(UserToPerm.permission == perm)\
-                .filter(UserToPerm.user == default_user).scalar():
-                reg_perm = UserToPerm()
-                reg_perm.user = default_user
-                reg_perm.permission = perm
-                self.sa.add(reg_perm)
+        PermissionModel(self.sa).create_default_permissions(user=User.DEFAULT_USER)
 
     @staticmethod
     def check_waitress():

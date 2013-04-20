@@ -77,9 +77,14 @@
   </ul>
 </%def>
 
-<%def name="admin_menu_simple()">
+<%def name="admin_menu_simple(repository_groups=None, user_groups=None)">
   <ul>
+   %if repository_groups:
       <li>${h.link_to(_('Repository groups'),h.url('repos_groups'),class_='repos_groups')}</li>
+   %endif:
+   %if user_groups:
+      <li>${h.link_to(_('User groups'),h.url('users_groups'),class_='groups')}</li>
+   %endif
   </ul>
 </%def>
 
@@ -123,7 +128,6 @@
               %if c.rhodecode_db_repo.fork:
                <li>${h.link_to(_('Compare fork'),h.url('compare_url',repo_name=c.rhodecode_db_repo.fork.repo_name,org_ref_type='branch',org_ref='default',other_repo=c.repo_name,other_ref_type='branch',other_ref=request.GET.get('branch') or 'default', merge=1),class_='compare_request')}</li>
               %endif
-              <li>${h.link_to(_('Lightweight changelog'),h.url('shortlog_home',repo_name=c.repo_name),class_='shortlog')}</li>
               <li>${h.link_to(_('Search'),h.url('search_repo',repo_name=c.repo_name),class_='search')}</li>
 
               %if h.HasRepoPermissionAny('repository.write','repository.admin')(c.repo_name) and c.rhodecode_db_repo.enable_locking:
@@ -294,12 +298,12 @@
               </a>
               ${admin_menu()}
             </li>
-          % elif c.rhodecode_user.groups_admin:
+          % elif c.rhodecode_user.repository_groups_admin or c.rhodecode_user.user_groups_admin:
           <li ${is_current('admin')}>
               <a class="menu_link admin childs" title="${_('Admin')}">
                 ${_('Admin')}
               </a>
-              ${admin_menu_simple()}
+              ${admin_menu_simple(c.rhodecode_user.repository_groups_admin, c.rhodecode_user.user_groups_admin)}
           </li>
           % endif
           ${usermenu()}

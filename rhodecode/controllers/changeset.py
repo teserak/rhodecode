@@ -170,9 +170,6 @@ def _context_url(GET, fileid=None):
 
 class ChangesetController(BaseRepoController):
 
-    @LoginRequired()
-    @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
-                                   'repository.admin')
     def __before__(self):
         super(ChangesetController, self).__before__()
         c.affected_files_cut_off = 60
@@ -180,7 +177,7 @@ class ChangesetController(BaseRepoController):
         c.users_array = repo_model.get_users_js()
         c.users_groups_array = repo_model.get_users_groups_js()
 
-    def index(self, revision, method='show'):
+    def _index(self, revision, method):
         c.anchor_url = anchor_url
         c.ignorews_url = _ignorews_url
         c.context_url = _context_url
@@ -312,16 +309,34 @@ class ChangesetController(BaseRepoController):
             else:
                 return render('changeset/changeset_range.html')
 
+    @LoginRequired()
+    @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
+                                   'repository.admin')
+    def index(self, revision, method='show'):
+        return self._index(revision, method=method)
+
+    @LoginRequired()
+    @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
+                                   'repository.admin')
     def changeset_raw(self, revision):
-        return self.index(revision, method='raw')
+        return self._index(revision, method='raw')
 
+    @LoginRequired()
+    @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
+                                   'repository.admin')
     def changeset_patch(self, revision):
-        return self.index(revision, method='patch')
+        return self._index(revision, method='patch')
 
+    @LoginRequired()
+    @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
+                                   'repository.admin')
     def changeset_download(self, revision):
-        return self.index(revision, method='download')
+        return self._index(revision, method='download')
 
+    @LoginRequired()
     @NotAnonymous()
+    @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
+                                   'repository.admin')
     @jsonify
     def comment(self, repo_name, revision):
         status = request.POST.get('changeset_status')
@@ -384,7 +399,10 @@ class ChangesetController(BaseRepoController):
 
         return data
 
+    @LoginRequired()
     @NotAnonymous()
+    @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
+                                   'repository.admin')
     def preview_comment(self):
         if not request.environ.get('HTTP_X_PARTIAL_XHR'):
             raise HTTPBadRequest()
@@ -393,7 +411,10 @@ class ChangesetController(BaseRepoController):
             return h.rst_w_mentions(text)
         return ''
 
+    @LoginRequired()
     @NotAnonymous()
+    @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
+                                   'repository.admin')
     @jsonify
     def delete_comment(self, repo_name, comment_id):
         co = ChangesetComment.get(comment_id)
@@ -405,6 +426,9 @@ class ChangesetController(BaseRepoController):
         else:
             raise HTTPForbidden()
 
+    @LoginRequired()
+    @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
+                                   'repository.admin')
     @jsonify
     def changeset_info(self, repo_name, revision):
         if request.is_xhr:

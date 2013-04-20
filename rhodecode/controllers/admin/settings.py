@@ -47,7 +47,7 @@ from rhodecode.model.db import RhodeCodeUi, Repository, RepoGroup, \
     RhodeCodeSetting, PullRequest, PullRequestReviewers
 from rhodecode.model.forms import UserForm, ApplicationSettingsForm, \
     ApplicationUiSettingsForm, ApplicationVisualisationForm
-from rhodecode.model.scm import ScmModel, GroupList
+from rhodecode.model.scm import ScmModel, RepoGroupList
 from rhodecode.model.user import UserModel
 from rhodecode.model.repo import RepoModel
 from rhodecode.model.db import User
@@ -197,11 +197,6 @@ class SettingsController(BaseController):
                 sett3.app_settings_value = \
                     form_result['rhodecode_stylify_metatags']
                 Session().add(sett3)
-
-                sett4 = RhodeCodeSetting.get_by_name_or_create('lightweight_dashboard')
-                sett4.app_settings_value = \
-                    form_result['rhodecode_lightweight_dashboard']
-                Session().add(sett4)
 
                 sett4 = RhodeCodeSetting.get_by_name_or_create('repository_fields')
                 sett4.app_settings_value = \

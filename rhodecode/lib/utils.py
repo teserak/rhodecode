@@ -53,11 +53,12 @@ from rhodecode.lib.caching_query import FromCache
 
 from rhodecode.model import meta
 from rhodecode.model.db import Repository, User, RhodeCodeUi, \
-    UserLog, RepoGroup, RhodeCodeSetting, CacheInvalidation
+    UserLog, RepoGroup, RhodeCodeSetting, CacheInvalidation, UserGroup
 from rhodecode.model.meta import Session
 from rhodecode.model.repos_group import ReposGroupModel
 from rhodecode.lib.utils2 import safe_str, safe_unicode
 from rhodecode.lib.vcs.utils.fakemod import create_module
+from rhodecode.model.users_group import UserGroupModel
 
 log = logging.getLogger(__name__)
 
@@ -100,6 +101,9 @@ def repo_name_slug(value):
     return slug
 
 
+#==============================================================================
+# PERM DECORATOR HELPERS FOR EXTRACTING NAMES FOR PERM CHECKS
+#==============================================================================
 def get_repo_slug(request):
     _repo = request.environ['pylons.routes_dict'].get('repo_name')
     if _repo:
@@ -111,6 +115,20 @@ def get_repos_group_slug(request):
     _group = request.environ['pylons.routes_dict'].get('group_name')
     if _group:
         _group = _group.rstrip('/')
+    return _group
+
+
+def get_user_group_slug(request):
+    _group = request.environ['pylons.routes_dict'].get('id')
+    try:
+        _group = UserGroup.get(_group)
+        if _group:
+            _group = _group.users_group_name
+    except Exception:
+        log.debug(traceback.format_exc())
+        #catch all failures here
+        pass
+
     return _group
 
 
@@ -372,6 +390,7 @@ def map_groups(path):
     # last element is repo in nested groups structure
     groups = groups[:-1]
     rgm = ReposGroupModel(sa)
+    owner = User.get_first_admin()
     for lvl, group_name in enumerate(groups):
         group_name = '/'.join(groups[:lvl] + [group_name])
         group = RepoGroup.get_by_group_name(group_name)
@@ -382,13 +401,16 @@ def map_groups(path):
             break
 
         if group is None:
-            log.debug('creating group level: %s group_name: %s' % (lvl,
-                                                                   group_name))
+            log.debug('creating group level: %s group_name: %s'
+                      % (lvl, group_name))
             group = RepoGroup(group_name, parent)
             group.group_description = desc
+            group.user = owner
             sa.add(group)
-            rgm._create_default_perms(group)
+            perm_obj = rgm._create_default_perms(group)
+            sa.add(perm_obj)
             sa.flush()
+
         parent = group
     return group
 
@@ -409,9 +431,7 @@ def repo2db_mapper(initial_repo_list, remove_obsolete=False,
     from rhodecode.model.scm import ScmModel
     sa = meta.Session()
     rm = RepoModel()
-    user = sa.query(User).filter(User.admin == True).first()
-    if user is None:
-        raise Exception('Missing administrative account!')
+    user = User.get_first_admin()
     added = []
 
     ##creation defaults

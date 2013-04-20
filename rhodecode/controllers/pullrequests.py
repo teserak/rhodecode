@@ -42,6 +42,7 @@ from rhodecode.lib.helpers import Page
 from rhodecode.lib import helpers as h
 from rhodecode.lib import diffs
 from rhodecode.lib.utils import action_logger, jsonify
+from rhodecode.lib.vcs.utils import safe_str
 from rhodecode.lib.vcs.exceptions import EmptyRepositoryError
 from rhodecode.lib.vcs.backends.base import EmptyChangeset
 from rhodecode.lib.diffs import LimitedDiffContainer
@@ -61,9 +62,6 @@ log = logging.getLogger(__name__)
 
 class PullrequestsController(BaseRepoController):
 
-    @LoginRequired()
-    @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
-                                   'repository.admin')
     def __before__(self):
         super(PullrequestsController, self).__before__()
         repo_model = RepoModel()
@@ -73,10 +71,14 @@ class PullrequestsController(BaseRepoController):
     def _get_repo_refs(self, repo, rev=None, branch_rev=None):
         """return a structure with repo's interesting changesets, suitable for
         the selectors in pullrequest.html"""
-
         # list named branches that has been merged to this named branch - it should probably merge back
         peers = []
+
+        if rev:
+            rev = safe_str(rev)
+
         if branch_rev:
+            branch_rev = safe_str(branch_rev)
             # not restricting to merge() would also get branch point and be better
             # (especially because it would get the branch point) ... but is currently too expensive
             revs = ["sort(parents(branch(id('%s')) and merge()) - branch(id('%s')))" %
@@ -139,10 +141,80 @@ class PullrequestsController(BaseRepoController):
                                                    pull_request.reviewers]
         return (self.rhodecode_user.admin or owner or reviewer)
 
+    def _load_compare_data(self, pull_request, enable_comments=True):
+        """
+        Load context data needed for generating compare diff
+
+        :param pull_request:
+        :type pull_request:
+        """
+        org_repo = pull_request.org_repo
+        (org_ref_type,
+         org_ref_name,
+         org_ref_rev) = pull_request.org_ref.split(':')
+
+        other_repo = org_repo
+        (other_ref_type,
+         other_ref_name,
+         other_ref_rev) = pull_request.other_ref.split(':')
+
+        # despite opening revisions for bookmarks/branches/tags, we always
+        # convert this to rev to prevent changes after bookmark or branch change
+        org_ref = ('rev', org_ref_rev)
+        other_ref = ('rev', other_ref_rev)
+
+        c.org_repo = org_repo
+        c.other_repo = other_repo
+
+        c.fulldiff = fulldiff = request.GET.get('fulldiff')
+
+        c.cs_ranges = [org_repo.get_changeset(x) for x in pull_request.revisions]
+
+        c.statuses = org_repo.statuses([x.raw_id for x in c.cs_ranges])
+
+        c.org_ref = org_ref[1]
+        c.org_ref_type = org_ref[0]
+        c.other_ref = other_ref[1]
+        c.other_ref_type = other_ref[0]
+
+        diff_limit = self.cut_off_limit if not fulldiff else None
+
+        # we swap org/other ref since we run a simple diff on one repo
+        log.debug('running diff between %s@%s and %s@%s'
+                  % (org_repo.scm_instance.path, org_ref,
+                     other_repo.scm_instance.path, other_ref))
+        _diff = org_repo.scm_instance.get_diff(rev1=safe_str(other_ref[1]), rev2=safe_str(org_ref[1]))
+
+        diff_processor = diffs.DiffProcessor(_diff or '', format='gitdiff',
+                                             diff_limit=diff_limit)
+        _parsed = diff_processor.prepare()
+
+        c.limited_diff = False
+        if isinstance(_parsed, LimitedDiffContainer):
+            c.limited_diff = True
+
+        c.files = []
+        c.changes = {}
+        c.lines_added = 0
+        c.lines_deleted = 0
+        for f in _parsed:
+            st = f['stats']
+            if st[0] != 'b':
+                c.lines_added += st[0]
+                c.lines_deleted += st[1]
+            fid = h.FID('', f['filename'])
+            c.files.append([fid, f['operation'], f['filename'], f['stats']])
+            diff = diff_processor.as_html(enable_comments=enable_comments,
+                                          parsed_lines=[f])
+            c.changes[fid] = [f['operation'], f['filename'], diff]
+
+    @LoginRequired()
+    @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
+                                   'repository.admin')
     def show_all(self, repo_name):
         c.pull_requests = PullRequestModel().get_all(repo_name)
         c.repo_name = repo_name
-        p = safe_int(request.params.get('page', 1), 1)
+        p = safe_int(request.GET.get('page', 1), 1)
 
         c.pullrequests_pager = Page(c.pull_requests, page=p, items_per_page=10)
 
@@ -153,7 +225,10 @@ class PullrequestsController(BaseRepoController):
 
         return render('/pullrequests/pullrequest_show_all.html')
 
+    @LoginRequired()
     @NotAnonymous()
+    @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
+                                   'repository.admin')
     def index(self):
         org_repo = c.rhodecode_db_repo
 
@@ -215,7 +290,10 @@ class PullrequestsController(BaseRepoController):
 
         return render('/pullrequests/pullrequest.html')
 
+    @LoginRequired()
     @NotAnonymous()
+    @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
+                                   'repository.admin')
     def create(self, repo_name):
         repo = RepoModel()._get_repo(repo_name)
         try:
@@ -236,7 +314,7 @@ class PullrequestsController(BaseRepoController):
         org_ref = 'rev:merge:%s' % _form['merge_rev']
         other_repo = _form['other_repo']
         other_ref = 'rev:ancestor:%s' % _form['ancestor_rev']
-        revisions = _form['revisions']
+        revisions = reversed(_form['revisions'])
         reviewers = _form['review_members']
 
         title = _form['pullrequest_title']
@@ -259,7 +337,10 @@ class PullrequestsController(BaseRepoController):
         return redirect(url('pullrequest_show', repo_name=other_repo,
                             pull_request_id=pull_request.pull_request_id))
 
+    @LoginRequired()
     @NotAnonymous()
+    @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
+                                   'repository.admin')
     @jsonify
     def update(self, repo_name, pull_request_id):
         pull_request = PullRequest.get_or_404(pull_request_id)
@@ -276,7 +357,10 @@ class PullrequestsController(BaseRepoController):
             return True
         raise HTTPForbidden()
 
+    @LoginRequired()
     @NotAnonymous()
+    @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
+                                   'repository.admin')
     @jsonify
     def delete(self, repo_name, pull_request_id):
         pull_request = PullRequest.get_or_404(pull_request_id)
@@ -289,70 +373,9 @@ class PullrequestsController(BaseRepoController):
             return redirect(url('admin_settings_my_account', anchor='pullrequests'))
         raise HTTPForbidden()
 
-    def _load_compare_data(self, pull_request, enable_comments=True):
-        """
-        Load context data needed for generating compare diff
-
-        :param pull_request:
-        :type pull_request:
-        """
-        org_repo = pull_request.org_repo
-        (org_ref_type,
-         org_ref_name,
-         org_ref_rev) = pull_request.org_ref.split(':')
-
-        other_repo = org_repo
-        (other_ref_type,
-         other_ref_name,
-         other_ref_rev) = pull_request.other_ref.split(':')
-
-        # despite opening revisions for bookmarks/branches/tags, we always
-        # convert this to rev to prevent changes after bookmark or branch change
-        org_ref = ('rev', org_ref_rev)
-        other_ref = ('rev', other_ref_rev)
-
-        c.org_repo = org_repo
-        c.other_repo = other_repo
-
-        c.fulldiff = fulldiff = request.GET.get('fulldiff')
-
-        c.cs_ranges = [org_repo.get_changeset(x) for x in pull_request.revisions]
-
-        c.statuses = org_repo.statuses([x.raw_id for x in c.cs_ranges])
-
-        c.org_ref = org_ref[1]
-        c.org_ref_type = org_ref[0]
-        c.other_ref = other_ref[1]
-        c.other_ref_type = other_ref[0]
-
-        diff_limit = self.cut_off_limit if not fulldiff else None
-
-        #we swap org/other ref since we run a simple diff on one repo
-        _diff = diffs.differ(org_repo, other_ref, other_repo, org_ref)
-
-        diff_processor = diffs.DiffProcessor(_diff or '', format='gitdiff',
-                                             diff_limit=diff_limit)
-        _parsed = diff_processor.prepare()
-
-        c.limited_diff = False
-        if isinstance(_parsed, LimitedDiffContainer):
-            c.limited_diff = True
-
-        c.files = []
-        c.changes = {}
-        c.lines_added = 0
-        c.lines_deleted = 0
-        for f in _parsed:
-            st = f['stats']
-            if st[0] != 'b':
-                c.lines_added += st[0]
-                c.lines_deleted += st[1]
-            fid = h.FID('', f['filename'])
-            c.files.append([fid, f['operation'], f['filename'], f['stats']])
-            diff = diff_processor.as_html(enable_comments=enable_comments,
-                                          parsed_lines=[f])
-            c.changes[fid] = [f['operation'], f['filename'], diff]
-
+    @LoginRequired()
+    @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
+                                   'repository.admin')
     def show(self, repo_name, pull_request_id):
         repo_model = RepoModel()
         c.users_array = repo_model.get_users_js()
@@ -421,7 +444,10 @@ class PullrequestsController(BaseRepoController):
         c.ancestor = None # there is one - but right here we don't know which
         return render('/pullrequests/pullrequest_show.html')
 
+    @LoginRequired()
     @NotAnonymous()
+    @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
+                                   'repository.admin')
     @jsonify
     def comment(self, repo_name, pull_request_id):
         pull_request = PullRequest.get_or_404(pull_request_id)
@@ -496,7 +522,10 @@ class PullrequestsController(BaseRepoController):
 
         return data
 
+    @LoginRequired()
     @NotAnonymous()
+    @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
+                                   'repository.admin')
     @jsonify
     def delete_comment(self, repo_name, comment_id):
         co = ChangesetComment.get(comment_id)
