@@ -26,8 +26,6 @@ import logging
 import formencode
 import traceback
 import pprint
-import json
-import rhodecode.lib.auth
 import sets
 
 from formencode import htmlfill
@@ -38,13 +36,15 @@ from pylons.i18n.translation import _
 
 from sqlalchemy.exc import DatabaseError
 
-from rhodecode.lib.base import BaseController, render
+import rhodecode.lib.auth
+
 from rhodecode.lib import helpers as h
+from rhodecode.lib.compat import json
+from rhodecode.lib.base import BaseController, render
 from rhodecode.lib.auth import LoginRequired, HasPermissionAllDecorator
 from rhodecode.model.forms import AuthSettingsForm
 from rhodecode.model.db import RhodeCodeSetting
 from rhodecode.model.meta import Session
-import rhodecode.lib.auth
 
 log = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class AuthSettingsController(BaseController):
         _defaults = {}
         formglobals = {
             "auth_plugins": "rhodecode.lib.auth_rhodecode"
-            }
+        }
         formglobals.update(RhodeCodeSetting.get_auth_settings())
         _defaults["auth_plugins"] = formglobals["auth_plugins"]
         formglobals["plugin_settings"] = {}
