@@ -39,12 +39,12 @@
    <div id="footer-inner" class="title">
        <div>
            <p class="footer-link">
-                <a href="${h.url('bugtracker')}">${_('Submit a bug')}</a>
+               ${_('Server instance: %s') % c.rhodecode_instanceid if c.rhodecode_instanceid else ''}
            </p>
            <p class="footer-link-right">
                <a href="${h.url('rhodecode_official')}">RhodeCode ${c.rhodecode_version}</a>
-               ${'(%s)' % c.rhodecode_instanceid if c.rhodecode_instanceid else ''}
                &copy; 2010-${h.datetime.today().year} by Marcin Kuzminski and others
+               &ndash; <a href="${h.url('bugtracker')}">${_('Report a bug')}</a>
            </p>
        </div>
    </div>
@@ -303,7 +303,8 @@
               <a class="menu_link admin childs" title="${_('Admin')}">
                 ${_('Admin')}
               </a>
-              ${admin_menu_simple(c.rhodecode_user.repository_groups_admin, c.rhodecode_user.user_groups_admin)}
+              ${admin_menu_simple(c.rhodecode_user.repository_groups_admin,
+                                  c.rhodecode_user.user_groups_admin or h.HasPermissionAny('hg.usergroup.create.true')())}
           </li>
           % endif
           ${usermenu()}

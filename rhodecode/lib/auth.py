@@ -350,8 +350,8 @@ def login_container_auth(username):
             'name': username,
             'lastname': None,
             'email': None,
-            'active': 'hg.register.auto_activate' in User\
-               .get_default_user().AuthUser.permissions['global'],
+            'active': 'hg.extern_activate.auto' in User.get_default_user()\
+                                            .AuthUser.permissions['global'],
             'extern_name': username,
             'extern_type': 'container'
         }

@@ -641,6 +641,8 @@ class UserGroup(Base, BaseModel):
     users_group_repo_to_perm = relationship('UserGroupRepoToPerm', cascade='all')
     users_group_repo_group_to_perm = relationship('UserGroupRepoGroupToPerm', cascade='all')
     user_user_group_to_perm = relationship('UserUserGroupToPerm ', cascade='all')
+    user_group_user_group_to_perm = relationship('UserGroupUserGroupToPerm ', primaryjoin="UserGroupUserGroupToPerm.target_user_group_id==UserGroup.users_group_id", cascade='all')
+
     user = relationship('User')
 
     def __unicode__(self):
@@ -1165,10 +1167,6 @@ class Repository(Base, BaseModel):
     # SCM CACHE INSTANCE
     #==========================================================================
 
-    @property
-    def invalidate(self):
-        return CacheInvalidation.invalidate(self.repo_name)
-
     def set_invalidate(self):
         """
         Mark caches of this repo as invalid.
@@ -1186,27 +1184,16 @@ class Repository(Base, BaseModel):
             return self.scm_instance_cached()
         return self.__get_instance()
 
-    def scm_instance_cached(self, cache_map=None):
+    def scm_instance_cached(self, valid_cache_keys=None):
         @cache_region('long_term')
         def _c(repo_name):
             return self.__get_instance()
         rn = self.repo_name
 
-        if cache_map:
-            # get using prefilled cache_map
-            invalidate_repo = cache_map[self.repo_name]
-            if invalidate_repo:
-                invalidate_repo = (None if invalidate_repo.cache_active
-                                   else invalidate_repo)
-        else:
-            # get from invalidate
-            invalidate_repo = self.invalidate
-
-        if invalidate_repo is not None:
-            region_invalidate(_c, None, rn)
+        valid = CacheInvalidation.test_and_set_valid(rn, None, valid_cache_keys=valid_cache_keys)
+        if not valid:
             log.debug('Cache for %s invalidated, getting new object' % (rn))
-            # update our cache
-            CacheInvalidation.set_valid(invalidate_repo.cache_key)
+            region_invalidate(_c, None, rn)
         else:
             log.debug('Getting obj for %s from cache' % (rn))
         return _c(rn)
@@ -1441,12 +1428,13 @@ class Permission(Base, BaseModel):
         ('hg.fork.none', _('Repository forking disabled')),
         ('hg.fork.repository', _('Repository forking enabled')),
 
-        ('hg.register.none', _('Register disabled')),
-        ('hg.register.manual_activate', _('Register new user with RhodeCode '
-                                          'with manual activation')),
+        ('hg.register.none', _('Registration disabled')),
+        ('hg.register.manual_activate', _('User Registration with manual account activation')),
+        ('hg.register.auto_activate', _('User Registration with automatic account activation')),
 
-        ('hg.register.auto_activate', _('Register new user with RhodeCode '
-                                        'with auto activation')),
+        ('hg.extern_activate.manual', _('Manual activation of external account')),
+        ('hg.extern_activate.auto', _('Automatic activation of external account')),
+
     ]
 
     #definition of system default permissions for DEFAULT user
@@ -1457,6 +1445,7 @@ class Permission(Base, BaseModel):
         'hg.create.repository',
         'hg.fork.repository',
         'hg.register.manual_activate',
+        'hg.extern_activate.auto',
     ]
 
     # defines which permissions are more important higher the more important
@@ -1632,24 +1621,24 @@ class UserGroupRepoToPerm(Base, BaseModel):
         return n
 
     def __unicode__(self):
-        return u'<userGroup:%s => %s >' % (self.users_group, self.repository)
+        return u'<UserGroupRepoToPerm:%s => %s >' % (self.users_group, self.repository)
 
 
-#TODO; not sure if this will be ever used
 class UserGroupUserGroupToPerm(Base, BaseModel):
     __tablename__ = 'user_group_user_group_to_perm'
     __table_args__ = (
-        UniqueConstraint('user_group_id', 'user_group_id', 'permission_id'),
+        UniqueConstraint('target_user_group_id', 'user_group_id', 'permission_id'),
+        CheckConstraint('target_user_group_id != user_group_id'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
          'mysql_charset': 'utf8'}
     )
-    user_user_group_to_perm_id = Column("user_user_group_to_perm_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
-    target_user_group_id = Column("target_users_group_id", Integer(), ForeignKey('users_groups.users_group_id'), nullable=False, unique=None, default=None)
+    user_group_user_group_to_perm_id = Column("user_group_user_group_to_perm_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
+    target_user_group_id = Column("target_user_group_id", Integer(), ForeignKey('users_groups.users_group_id'), nullable=False, unique=None, default=None)
     permission_id = Column("permission_id", Integer(), ForeignKey('permissions.permission_id'), nullable=False, unique=None, default=None)
     user_group_id = Column("user_group_id", Integer(), ForeignKey('users_groups.users_group_id'), nullable=False, unique=None, default=None)
 
-    target_user_group = relationship('UserGroup', remote_side=target_user_group_id, primaryjoin='UserGroupUserGroupToPerm.target_user_group_id==UserGroup.users_group_id')
-    user_group = relationship('UserGroup', remote_side=user_group_id, primaryjoin='UserGroupUserGroupToPerm.user_group_id==UserGroup.users_group_id')
+    target_user_group = relationship('UserGroup', primaryjoin='UserGroupUserGroupToPerm.target_user_group_id==UserGroup.users_group_id')
+    user_group = relationship('UserGroup', primaryjoin='UserGroupUserGroupToPerm.user_group_id==UserGroup.users_group_id')
     permission = relationship('Permission')
 
     @classmethod
@@ -1662,7 +1651,7 @@ class UserGroupUserGroupToPerm(Base, BaseModel):
         return n
 
     def __unicode__(self):
-        return u'<UserGroup:%s => %s >' % (self.target_user_group, self.user_group)
+        return u'<UserGroupUserGroup:%s => %s >' % (self.target_user_group, self.user_group)
 
 
 class UserGroupToPerm(Base, BaseModel):
@@ -1827,34 +1816,6 @@ class CacheInvalidation(Base, BaseModel):
         return "%s%s" % (prefix, key)
 
     @classmethod
-    def invalidate(cls, key):
-        """
-        Returns Invalidation object if the local cache with the given key is invalid,
-        None otherwise.
-        """
-        repo_name = key
-        repo_name = remove_suffix(repo_name, '_README')
-        repo_name = remove_suffix(repo_name, '_RSS')
-        repo_name = remove_suffix(repo_name, '_ATOM')
-
-        cache_key = cls._get_cache_key(key)
-        inv_obj = Session().query(cls).filter(cls.cache_key == cache_key).scalar()
-        if not inv_obj:
-            try:
-                inv_obj = CacheInvalidation(cache_key, repo_name)
-                Session().add(inv_obj)
-                Session().commit()
-            except Exception:
-                log.error(traceback.format_exc())
-                Session().rollback()
-                return
-
-        if not inv_obj.cache_active:
-            # `cache_active = False` means that this cache
-            # no longer is valid
-            return inv_obj
-
-    @classmethod
     def set_invalidate(cls, repo_name):
         """
         Mark all caches of a repo as invalid in the database.
@@ -1873,46 +1834,40 @@ class CacheInvalidation(Base, BaseModel):
             Session().rollback()
 
     @classmethod
-    def set_valid(cls, cache_key):
+    def test_and_set_valid(cls, repo_name, kind, valid_cache_keys=None):
         """
-        Mark this cache key as active and currently cached
+        Mark this cache key as active and currently cached.
+        Return True if the existing cache registration still was valid.
+        Return False to indicate that it had been invalidated and caches should be refreshed.
         """
-        inv_obj = cls.query().filter(cls.cache_key == cache_key).scalar()
-        inv_obj.cache_active = True
-        Session().add(inv_obj)
-        Session().commit()
+
+        key = (repo_name + '_' + kind) if kind else repo_name
+        cache_key = cls._get_cache_key(key)
+
+        if valid_cache_keys and cache_key in valid_cache_keys:
+            return True
+
+        try:
+            inv_obj = cls.query().filter(cls.cache_key == cache_key).scalar()
+            if not inv_obj:
+                inv_obj = CacheInvalidation(cache_key, repo_name)
+            was_valid = inv_obj.cache_active
+            inv_obj.cache_active = True
+            Session().add(inv_obj)
+            Session().commit()
+            return was_valid
+        except Exception:
+            log.error(traceback.format_exc())
+            Session().rollback()
+            return False
 
     @classmethod
-    def get_cache_map(cls):
-
-        class cachemapdict(dict):
-
-            def __init__(self, *args, **kwargs):
-                self.fixkey = kwargs.pop('fixkey', False)
-                super(cachemapdict, self).__init__(*args, **kwargs)
-
-            def __getattr__(self, name):
-                cache_key = name
-                if self.fixkey:
-                    cache_key = cls._get_cache_key(name)
-                if cache_key in self.__dict__:
-                    return self.__dict__[cache_key]
-                else:
-                    return self[cache_key]
-
-            def __getitem__(self, name):
-                cache_key = name
-                if self.fixkey:
-                    cache_key = cls._get_cache_key(name)
-                try:
-                    return super(cachemapdict, self).__getitem__(cache_key)
-                except KeyError:
-                    return None
-
-        cache_map = cachemapdict(fixkey=True)
-        for obj in cls.query().all():
-            cache_map[obj.cache_key] = cachemapdict(obj.get_dict())
-        return cache_map
+    def get_valid_cache_keys(cls):
+        """
+        Return opaque object with information of which caches still are valid
+        and can be used without checking for invalidation.
+        """
+        return set(inv_obj.cache_key for inv_obj in cls.query().filter(cls.cache_active).all())
 
 
 class ChangesetComment(Base, BaseModel):

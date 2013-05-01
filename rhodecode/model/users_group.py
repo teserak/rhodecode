@@ -29,8 +29,10 @@ import traceback
 
 from rhodecode.model import BaseModel
 from rhodecode.model.db import UserGroupMember, UserGroup,\
-    UserGroupRepoToPerm, Permission, UserGroupToPerm, User, UserUserGroupToPerm
-from rhodecode.lib.exceptions import UserGroupsAssignedException
+    UserGroupRepoToPerm, Permission, UserGroupToPerm, User, UserUserGroupToPerm,\
+    UserGroupUserGroupToPerm
+from rhodecode.lib.exceptions import UserGroupsAssignedException,\
+    RepoGroupAssignmentError
 
 log = logging.getLogger(__name__)
 
@@ -61,6 +63,7 @@ class UserGroupModel(BaseModel):
 
     def _update_permissions(self, user_group, perms_new=None,
                             perms_updates=None):
+        from rhodecode.lib.auth import HasUserGroupPermissionAny
         if not perms_new:
             perms_new = []
         if not perms_updates:
@@ -74,9 +77,12 @@ class UserGroupModel(BaseModel):
                     user_group=user_group, user=member, perm=perm
                 )
             else:
-                self.grant_users_group_permission(
-                    user_group=user_group, group_name=member, perm=perm
-                )
+                #check if we have permissions to alter this usergroup
+                if HasUserGroupPermissionAny('usergroup.read', 'usergroup.write',
+                                             'usergroup.admin')(member):
+                    self.grant_users_group_permission(
+                        target_user_group=user_group, user_group=member, perm=perm
+                    )
         # set new permissions
         for member, perm, member_type in perms_new:
             if member_type == 'user':
@@ -84,9 +90,12 @@ class UserGroupModel(BaseModel):
                     user_group=user_group, user=member, perm=perm
                 )
             else:
-                self.grant_users_group_permission(
-                    user_group=user_group, group_name=member, perm=perm
-                )
+                #check if we have permissions to alter this usergroup
+                if HasUserGroupPermissionAny('usergroup.read', 'usergroup.write',
+                                             'usergroup.admin')(member):
+                    self.grant_users_group_permission(
+                        target_user_group=user_group, user_group=member, perm=perm
+                    )
 
     def get(self, users_group_id, cache=False):
         return UserGroup.get(users_group_id)
@@ -292,8 +301,50 @@ class UserGroupModel(BaseModel):
             self.sa.delete(obj)
             log.debug('Revoked perm on %s on %s' % (user_group, user))
 
-    def grant_users_group_permission(self, user_group, group_name, perm):
-        raise NotImplementedError()
+    def grant_users_group_permission(self, target_user_group, user_group, perm):
+        """
+        Grant user group permission for given target_user_group
 
-    def revoke_users_group_permission(self, user_group, group_name):
-        raise NotImplementedError()
+        :param target_user_group:
+        :param user_group:
+        :param perm:
+        """
+        target_user_group = self._get_user_group(target_user_group)
+        user_group = self._get_user_group(user_group)
+        permission = self._get_perm(perm)
+        # forbid assigning same user group to itself
+        if target_user_group == user_group:
+            raise RepoGroupAssignmentError('target repo:%s cannot be '
+                                           'assigned to itself' % target_user_group)
+
+        # check if we have that permission already
+        obj = self.sa.query(UserGroupUserGroupToPerm)\
+            .filter(UserGroupUserGroupToPerm.target_user_group == target_user_group)\
+            .filter(UserGroupUserGroupToPerm.user_group == user_group)\
+            .scalar()
+        if obj is None:
+            # create new !
+            obj = UserGroupUserGroupToPerm()
+        obj.user_group = user_group
+        obj.target_user_group = target_user_group
+        obj.permission = permission
+        self.sa.add(obj)
+        log.debug('Granted perm %s to %s on %s' % (perm, target_user_group, user_group))
+
+    def revoke_users_group_permission(self, target_user_group, user_group):
+        """
+        Revoke user group permission for given target_user_group
+
+        :param target_user_group:
+        :param user_group:
+        """
+        target_user_group = self._get_user_group(target_user_group)
+        user_group = self._get_user_group(user_group)
+
+        obj = self.sa.query(UserGroupUserGroupToPerm)\
+            .filter(UserGroupUserGroupToPerm.target_user_group == target_user_group)\
+            .filter(UserGroupUserGroupToPerm.user_group == user_group)\
+            .scalar()
+        if obj:
+            self.sa.delete(obj)
+            log.debug('Revoked perm on %s on %s' % (target_user_group, user_group))
