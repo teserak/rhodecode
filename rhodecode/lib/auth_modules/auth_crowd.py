@@ -1,16 +1,37 @@
-import logging
-import functools
-import urllib2
+# -*- coding: utf-8 -*-
+"""
+    rhodecode.lib.auth_modules.auth_crowd
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    RhodeCode authentication plugin for Atlassian CROWD
+
+    :created_on: Created on Nov 17, 2012
+    :author: marcink
+    :copyright: (C) 2010-2012 Marcin Kuzminski <marcin@python-works.com>
+    :license: GPLv3, see COPYING for more details.
+"""
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import base64
-import rhodecode.lib.auth
+import logging
+import urllib2
+from rhodecode.lib import auth
 from rhodecode.model import validators as v
-from rhodecode.lib.compat import json
+from rhodecode.lib.compat import json, formatted_json
+from rhodecode.model.db import User
 
 log = logging.getLogger(__name__)
-
-
-# alias for formatted json
-formatted_json = functools.partial(json, indent=4, sort_keys=True)
 
 
 class CrowdServer(object):
@@ -107,7 +128,7 @@ class CrowdServer(object):
         return self._request(url)
 
 
-class RhodeCodeAuthPlugin(rhodecode.lib.auth.RhodeCodeAuthPlugin):
+class RhodeCodeAuthPlugin(auth.RhodeCodeAuthPluginBase):
     def name(self):
         return "crowd"
 
@@ -187,6 +208,10 @@ class RhodeCodeAuthPlugin(rhodecode.lib.auth.RhodeCodeAuthPlugin):
 
     def use_fake_password(self):
         return True
+
+    def user_activation_state(self):
+        def_user_perms = User.get_by_username('default').AuthUser.permissions['global']
+        return 'hg.extern_activate.auto' in def_user_perms
 
     def auth(self, userobj, user, passwd, settings):
         """

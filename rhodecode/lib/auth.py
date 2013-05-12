@@ -48,10 +48,10 @@ from rhodecode.model import meta
 from rhodecode.model.user import UserModel
 from rhodecode.model.db import Permission, RhodeCodeSetting, User, UserIpMap
 from rhodecode.lib.caching_query import FromCache
+from rhodecode.lib.compat import formatted_json
 
 log = logging.getLogger(__name__)
 
-import json
 
 class PasswordGenerator(object):
     """
@@ -84,15 +84,17 @@ class PasswordGenerator(object):
         self.passwd = ''.join([random.choice(type_) for _ in xrange(length)])
         return self.passwd
 
-class RhodeCodeAuthPlugin(object):
+
+class RhodeCodeAuthPluginBase(object):
+
     @classmethod
     def name():
         """
         Returns the name of this authentication plugin.
 
-        returns: string
+        :returns: string
         """
-        raise Exception("Not implemented in base class")
+        raise NotImplementedError("Not implemented in base class")
 
     @classmethod
     def settings():
@@ -124,7 +126,7 @@ class RhodeCodeAuthPlugin(object):
         'validator' is an instantiated form field validator object, ala
         formencode. Feel free to use the rhodecode validators here as well.
         """
-        raise Exception("Not implemented in base class")
+        raise NotImplementedError("Not implemented in base class")
 
     def plugin_settings(self):
         """
@@ -148,7 +150,7 @@ class RhodeCodeAuthPlugin(object):
                 "type": "bool",
                 "description": "Enable or Disable this Authentication Plugin",
                 "formname": "Enabled"
-                }
+            }
         )
         return rcsettings
 
@@ -159,9 +161,18 @@ class RhodeCodeAuthPlugin(object):
         password to a random value when it is authenticated by this plugin.
         If your plugin provides authentication, then you will generally want this.
 
-        returns: boolean
+        :returns: boolean
         """
-        raise Exception("Not implemented in base class")
+        raise NotImplementedError("Not implemented in base class")
+
+    @classmethod
+    def user_activation_state():
+        """
+        Defines user activation state when creating new users
+
+        :returns: boolean
+        """
+        raise NotImplementedError("Not implemented in base class")
 
     @classmethod
     def auth(userobj, user, passwd, settings):
@@ -183,7 +194,7 @@ class RhodeCodeAuthPlugin(object):
             "active": True|False
         }
         """
-        raise Exception("not implemented in base class")
+        raise NotImplementedError("not implemented in base class")
 
 
 class RhodeCodeCrypto(object):
@@ -258,33 +269,42 @@ def authfunc(environ, username, password):
     """
     return authenticate(username, password)
 
+
 def loadplugin(plugin):
     """
     Load and return the authentication plugin in the module named by plugin
-    (e.g., plugin='rhodecode.lib.auth_rhodecode'). Returns an instantiated
-    RhodeCodeAuthPlugin subclass on success, raises exceptions on failure.
+    (e.g., plugin='rhodecode.lib.auth_modules.auth_rhodecode'). Returns an
+    instantiated RhodeCodeAuthPluginBase subclass on success, raises exceptions
+    on failure.
 
     raises:
         AttributeError -- no RhodeCodeAuthPlugin class in the module
-        TypeError -- if the RhodeCodeAuthPlugin is not a subclass of ours
+        TypeError -- if the RhodeCodeAuthPlugin is not a subclass of ours RhodeCodeAuthPluginBase
         ImportError -- if we couldn't import the plugin at all
     """
     log.debug("Importing %s" % plugin)
+    PLUGIN_CLASS_NAME = "RhodeCodeAuthPlugin"
+
     module = importlib.import_module(plugin)
-    log.debug("Loaded auth plugin from %s (%s in %s)" % (plugin, module.__name__, module.__file__))
-    pluginclass = getattr(module, "RhodeCodeAuthPlugin")
-    if not issubclass(pluginclass, RhodeCodeAuthPlugin):
-        raise TypeError("Authentication class %s.RhodeCodeAuthPlugin is not a subclass of rhodecode.lib.auth.RhodeCodeAuthPlugin" % plugin)
+    log.debug("Loaded auth plugin from %s (%s in %s)"
+              % (plugin, module.__name__, module.__file__))
+
+    pluginclass = getattr(module, PLUGIN_CLASS_NAME)
+    if not issubclass(pluginclass, RhodeCodeAuthPluginBase):
+        raise TypeError("Authentication class %s.RhodeCodeAuthPlugin is not "
+                        "a subclass of %s" % (plugin, RhodeCodeAuthPluginBase))
     plugin = pluginclass()
-    if (plugin.plugin_settings.im_func != RhodeCodeAuthPlugin.plugin_settings.im_func):
-        raise TypeError("Authentication class %s.RhodeCodeAuthPlugin has overriden the plugin_settings method, which is forbidden." % plugin)
+    if (plugin.plugin_settings.im_func != RhodeCodeAuthPluginBase.plugin_settings.im_func):
+        raise TypeError("Authentication class %s.RhodeCodeAuthPluginBase "
+                        "has overriden the plugin_settings method, which is "
+                        "forbidden." % plugin)
     return plugin
+
 
 def authenticate(username, password):
     """
     Authentication function used for access control,
-    firstly checks for db authentication then if ldap is enabled for ldap
-    authentication, also creates ldap user if not in database
+    It tries to authenticate based on enabled authentication modules.
 
     :param username: username
     :param password: password
@@ -295,37 +315,43 @@ def authenticate(username, password):
     if not user:
         user = User.get_by_username(username, case_insensitive=True)
 
-    auth_plugins = RhodeCodeSetting.get_by_name("auth_plugins").app_settings_value
-
-    for module in auth_plugins.split(","):
+    auth_plugins = aslist(RhodeCodeSetting.get_by_name("auth_plugins").app_settings_value, sep=',')
+    for module in auth_plugins:
         try:
             plugin = loadplugin(module)
         except (ImportError, AttributeError, TypeError), e:
-            raise ImportError('Failed to load authentication module %s : %s' % (module, str(e)))
-            continue
+            raise ImportError('Failed to load authentication module %s : %s'
+                              % (module, str(e)))
         pluginConfigSettings = plugin.plugin_settings()
         pluginName = plugin.name()
-        if (user) and ( user.extern_type ) and ( user.extern_type != pluginName ):
+        if (user) and (user.extern_type) and (user.extern_type != pluginName):
             continue
+
         pluginSettings = {}
         for v in pluginConfigSettings:
             pluginSettings[v["name"]] = RhodeCodeSetting.\
                 get_by_name("auth_%s_%s" % (pluginName, v["name"])).app_settings_value
-        log.debug(json.dumps(pluginSettings, indent=4, sort_keys=True))
+        log.debug(formatted_json(pluginSettings))
         if pluginSettings["enabled"] == "False":
-            log.info("Authentication plugin %s is disabled, skipping for %s" % (module, username))
+            log.info("Authentication plugin %s is disabled, skipping for %s"
+                     % (module, username))
             continue
         pluginUser = plugin.auth(user, username, password, pluginSettings)
         if pluginUser:
             if plugin.use_fake_password():
-                # Randomize the PW because we don't need it, but don't want them blank either
+                # Randomize the PW because we don't need it, but don't want
+                # them blank either
                 password = PasswordGenerator().gen_password(length=8)
+
             if (not 'active' in pluginUser):
-                pluginUser['active'] = ('hg.register.auto_activate' in User\
-                                            .get_by_username('default').AuthUser.permissions['global'])
+                pluginUser['active'] = plugin.user_activation_state()
+
             if not pluginUser['active']:
-                log.warning("User %s authenticated against %s, but is inactive" % (username, pluginName))
+                log.warning("User %s authenticated against %s, but is inactive"
+                            % (username, pluginName))
                 return False
+
+            # create user mapped from auth plugin
             user_model.create_or_update(
                 username=username,
                 password=password,
@@ -335,15 +361,23 @@ def authenticate(username, password):
                 active=pluginUser["active"],
                 admin=pluginUser["admin"],
                 extern_name=pluginUser["extern_name"],
-                extern_type=pluginName)
+                extern_type=pluginName
+            )
             Session().commit()
             return True
         else:
-            log.warning("User %s failed to authenticate against %s" % (username, pluginName))
+            log.warning("User %s failed to authenticate against %s"
+                        % (username, pluginName))
     return False
 
 
 def login_container_auth(username):
+    """
+    Login container auth used for remote Logins using proxy-pass and container
+    auth
+
+    :param username:
+    """
     user = User.get_by_username(username)
     if user is None:
         user_attrs = {
@@ -626,8 +660,7 @@ class LoginRequired(object):
         user = cls.rhodecode_user
         loc = "%s:%s" % (cls.__class__.__name__, func.__name__)
         # defined whitelist of controllers which API access will be enabled
-        whitelist = aslist(config.get('api_access_controllers_whitelist'),
-                           sep=',')
+        whitelist = aslist(config.get('api_access_controllers_whitelist'), sep=',')
         api_access_whitelist = loc in whitelist
         log.debug('loc:%s is in API whitelist:%s:%s' % (loc, whitelist,
                                                         api_access_whitelist))
@@ -907,13 +940,15 @@ class PermsFunction(object):
             return False
         self.user_perms = user.permissions
         if self.check_permissions():
-            log.debug('Permission to %s granted for user: %s @ %s', self.repo_name, user,
-                      check_location or 'unspecified location')
+            log.debug('Permission to %s granted for user: %s @ %s'
+                      % (self.repo_name, user,
+                         check_location or 'unspecified location'))
             return True
 
         else:
-            log.debug('Permission to %s denied for user: %s @ %s', self.repo_name, user,
-                        check_location or 'unspecified location')
+            log.debug('Permission to %s denied for user: %s @ %s'
+                      % (self.repo_name, user,
+                        check_location or 'unspecified location'))
             return False
 
     def check_permissions(self):
@@ -1041,6 +1076,7 @@ class HasUserGroupPermissionAll(PermsFunction):
         if self.required_perms.issubset(self._user_perms):
             return True
         return False
+
 
 #==============================================================================
 # SPECIAL VERSION TO HANDLE MIDDLEWARE AUTH

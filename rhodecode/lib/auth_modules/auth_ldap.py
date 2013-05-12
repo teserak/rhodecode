@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-    rhodecode.controllers.changelog
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    rhodecode.lib.auth_modules.auth_ldap
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    RhodeCode authentication library for LDAP
+    RhodeCode authentication plugin for LDAP
 
     :created_on: Created on Nov 17, 2010
     :author: marcink
@@ -25,19 +25,17 @@
 
 import logging
 import traceback
-
-from rhodecode.lib.utils2 import str2bool, safe_unicode
-from rhodecode.lib.exceptions import LdapConnectionError, LdapUsernameError, \
-    LdapPasswordError, LdapImportError
-from rhodecode.lib.utils2 import safe_str
-from rhodecode.lib.exceptions import LdapPasswordError, LdapUsernameError,\
-    LdapImportError
-from rhodecode.model import validators as v
-import rhodecode.lib.auth
 import formencode
 
-log = logging.getLogger(__name__)
+from rhodecode.lib import auth
+from rhodecode.lib.compat import json, formatted_json
+from rhodecode.lib.utils2 import str2bool, safe_unicode, safe_str
+from rhodecode.lib.exceptions import LdapConnectionError, LdapUsernameError, \
+    LdapPasswordError, LdapImportError
+from rhodecode.model import validators as v
+from rhodecode.model.db import User
 
+log = logging.getLogger(__name__)
 
 try:
     import ldap
@@ -173,7 +171,8 @@ class AuthLdap(object):
 
         return (dn, attrs)
 
-class RhodeCodeAuthPlugin(rhodecode.lib.auth.RhodeCodeAuthPlugin):
+
+class RhodeCodeAuthPlugin(auth.RhodeCodeAuthPluginBase):
     def __init__(self):
         self._logger = logging.getLogger(__name__)
         self._tls_kind_values = ["PLAIN", "LDAPS", "START_TLS"]
@@ -287,6 +286,10 @@ class RhodeCodeAuthPlugin(rhodecode.lib.auth.RhodeCodeAuthPlugin):
 
     def use_fake_password(self):
         return True
+
+    def user_activation_state(self):
+        def_user_perms = User.get_by_username('default').AuthUser.permissions['global']
+        return 'hg.extern_activate.auto' in def_user_perms
 
     def auth(self, userobj, user, password, settings):
         log.debug("Authenticating user using ldap")

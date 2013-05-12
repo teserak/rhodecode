@@ -22,13 +22,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-import logging
-import formencode
-import traceback
-import pprint
 import sets
-
-from formencode import htmlfill
+import pprint
+import logging
+import formencode.htmlfill
+import traceback
 
 from pylons import request, response, session, tmpl_context as c, url
 from pylons.controllers.util import abort, redirect
@@ -36,10 +34,9 @@ from pylons.i18n.translation import _
 
 from sqlalchemy.exc import DatabaseError
 
-import rhodecode.lib.auth
-
+from rhodecode.lib import auth
 from rhodecode.lib import helpers as h
-from rhodecode.lib.compat import json
+from rhodecode.lib.compat import json, formatted_json
 from rhodecode.lib.base import BaseController, render
 from rhodecode.lib.auth import LoginRequired, HasPermissionAllDecorator
 from rhodecode.model.forms import AuthSettingsForm
@@ -60,15 +57,16 @@ class AuthSettingsController(BaseController):
 
     def index(self, defaults=None, errors=None, prefix_error=False):
         _defaults = {}
+        # default plugins loaded
         formglobals = {
-            "auth_plugins": "rhodecode.lib.auth_rhodecode"
+            "auth_plugins": "rhodecode.lib.auth_modules.auth_rhodecode"
         }
         formglobals.update(RhodeCodeSetting.get_auth_settings())
         _defaults["auth_plugins"] = formglobals["auth_plugins"]
         formglobals["plugin_settings"] = {}
         formglobals["auth_plugins_shortnames"] = {}
         for module in formglobals["auth_plugins"].split(","):
-            plugin = rhodecode.lib.auth.loadplugin(module)
+            plugin = auth.loadplugin(module)
             pluginName = plugin.name()
             formglobals["auth_plugins_shortnames"][module] = pluginName
             formglobals["plugin_settings"][module] = plugin.plugin_settings()
@@ -88,8 +86,8 @@ class AuthSettingsController(BaseController):
             setattr(c, k, v)
 
         log.debug(pprint.pformat(formglobals, indent=4))
-        log.debug(json.dumps(defaults, indent=4, sort_keys=True))
-        return htmlfill.render(
+        log.debug(formatted_json(defaults))
+        return formencode.htmlfill.render(
                     render('admin/auth/auth_settings.html'),
                     defaults=_defaults,
                     errors=errors,
@@ -106,7 +104,7 @@ class AuthSettingsController(BaseController):
 
         try:
             form_result = _form.to_python(dict(request.POST))
-            log.debug("POST Result: %s" % json.dumps(dict(request.POST), indent=4, sort_keys=True))
+            log.debug("POST Result: %s" % formatted_json(dict(request.POST)))
             modules = {}
             for k, v in form_result.items():
                 log.debug("%s = %s" % (k, str(v)))

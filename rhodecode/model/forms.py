@@ -365,23 +365,28 @@ def DefaultsForm(edit=False, old_data={}, supported_backends=BACKENDS.keys()):
 
     return _DefaultsForm
 
+
 def AuthSettingsForm():
     class _AuthSettingsForm(formencode.Schema):
         allow_extra_fields = True
         filter_extra_fields = True
-        auth_plugins = v.UnicodeString(strip=True,not_empty=True)
+        auth_plugins = v.UnicodeString(strip=True, not_empty=True)
+
         def __init__(self, *args, **kwargs):
             # The auth plugins tell us what form validators they use
             fields = RhodeCodeSetting.get_auth_settings()
-            for module in fields["auth_plugins"].split(","):
-                plugin = rhodecode.lib.auth.loadplugin(module)
-                pluginName = plugin.name()
-                for sv in plugin.plugin_settings():
-                    newk = "auth_" + pluginName + "_" + sv["name"]
-                    self.add_field(newk, sv["validator"])
+            auth_plugins = fields.get("auth_plugins")
+            if auth_plugins:
+                for module in auth_plugins.split(","):
+                    plugin = rhodecode.lib.auth.loadplugin(module)
+                    pluginName = plugin.name()
+                    for sv in plugin.plugin_settings():
+                        newk = "auth_%s_%s" % (pluginName, sv["name"])
+                        self.add_field(newk, sv["validator"])
             formencode.Schema.__init__(self, *args, **kwargs)
 
     return _AuthSettingsForm
+
 
 def LdapSettingsForm(tls_reqcert_choices, search_scope_choices,
                      tls_kind_choices):

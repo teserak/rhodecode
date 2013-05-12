@@ -231,7 +231,7 @@ class RhodeCodeSetting(Base, BaseModel):
                 .filter(cls.app_settings_name.startswith('auth_')).all()
         fd = {}
         for row in ret:
-            fd.update({row.app_settings_name:row.app_settings_value})
+            fd.update({row.app_settings_name: row.app_settings_value})
 
         return fd
 
