@@ -1,5 +1,3 @@
-import os
-import unittest
 import functools
 from rhodecode.tests import *
 
@@ -31,7 +29,8 @@ def permissions_setup_func(group_name='g0', perm='group.read', recursive=True):
     perms_updates = [[test_u2_gr_id, perm, 'users_group']]
     ReposGroupModel()._update_permissions(repos_group,
                                           perms_updates=perms_updates,
-                                          recursive=recursive)
+                                          recursive=recursive,
+                                          check_perms=False)
     Session().commit()
 
 

@@ -115,7 +115,6 @@ class RepoModel(BaseModel):
         Get's all repositories that user have at least read access
 
         :param user:
-        :type user:
         """
         from rhodecode.lib.auth import AuthUser
         user = self._get_user(user)
@@ -175,6 +174,7 @@ class RepoModel(BaseModel):
     def get_repos_as_dict(self, repos_list=None, admin=False, perm_check=True,
                           super_user_actions=False):
         _render = self._render_datatable
+        from pylons import tmpl_context as c
 
         def quick_menu(repo_name):
             return _render('quick_menu', repo_name)
@@ -198,7 +198,6 @@ class RepoModel(BaseModel):
                            cs_cache.get('message'))
 
         def desc(desc):
-            from pylons import tmpl_context as c
             if c.visual.stylify_metatags:
                 return h.urlify_text(h.desc_stylize(h.truncate(desc, 60)))
             else:
@@ -460,8 +459,8 @@ class RepoModel(BaseModel):
             enable_statistics, enable_locking, enable_downloads
         )
 
-    def _update_permissions(self, repo, perms_new=None,
-                            perms_updates=None):
+    def _update_permissions(self, repo, perms_new=None, perms_updates=None,
+                            check_perms=True):
         if not perms_new:
             perms_new = []
         if not perms_updates:
@@ -476,8 +475,8 @@ class RepoModel(BaseModel):
                 )
             else:
                 #check if we have permissions to alter this usergroup
-                if HasUserGroupPermissionAny('usergroup.read', 'usergroup.write',
-                                             'usergroup.admin')(member):
+                req_perms = ('usergroup.read', 'usergroup.write', 'usergroup.admin')
+                if not check_perms or HasUserGroupPermissionAny(*req_perms)(member):
                     self.grant_users_group_permission(
                         repo=repo, group_name=member, perm=perm
                     )
@@ -489,8 +488,8 @@ class RepoModel(BaseModel):
                 )
             else:
                 #check if we have permissions to alter this usergroup
-                if HasUserGroupPermissionAny('usergroup.read', 'usergroup.write',
-                                             'usergroup.admin')(member):
+                req_perms = ('usergroup.read', 'usergroup.write', 'usergroup.admin')
+                if not check_perms or HasUserGroupPermissionAny(*req_perms)(member):
                     self.grant_users_group_permission(
                         repo=repo, group_name=member, perm=perm
                     )
@@ -652,7 +651,13 @@ class RepoModel(BaseModel):
             log.error(traceback.format_exc())
             raise
 
-    def __create_repo(self, repo_name, alias, parent, clone_uri=False):
+    def _create_repo(self, repo_name, alias, parent, clone_uri=False,
+                     repo_store_location=None):
+        return self.__create_repo(repo_name, alias, parent, clone_uri,
+                                  repo_store_location)
+
+    def __create_repo(self, repo_name, alias, parent, clone_uri=False,
+                      repo_store_location=None):
         """
         makes repository on filesystem. It's group aware means it'll create
         a repository within a group, and alter the paths accordingly of
@@ -662,6 +667,7 @@ class RepoModel(BaseModel):
         :param alias:
         :param parent_id:
         :param clone_uri:
+        :param repo_path:
         """
         from rhodecode.lib.utils import is_valid_repo, is_valid_repos_group
         from rhodecode.model.scm import ScmModel
@@ -670,10 +676,12 @@ class RepoModel(BaseModel):
             new_parent_path = os.sep.join(parent.full_path_splitted)
         else:
             new_parent_path = ''
-
+        if repo_store_location:
+            _paths = [repo_store_location]
+        else:
+            _paths = [self.repos_path, new_parent_path, repo_name]
         # we need to make it str for mercurial
-        repo_path = os.path.join(*map(lambda x: safe_str(x),
-                                [self.repos_path, new_parent_path, repo_name]))
+        repo_path = os.path.join(*map(lambda x: safe_str(x), _paths))
 
         # check if this path is not a repository
         if is_valid_repo(repo_path, self.repos_path):
@@ -690,13 +698,14 @@ class RepoModel(BaseModel):
         )
         backend = get_backend(alias)
         if alias == 'hg':
-            backend(repo_path, create=True, src_url=clone_uri)
+            repo = backend(repo_path, create=True, src_url=clone_uri)
         elif alias == 'git':
-            r = backend(repo_path, create=True, src_url=clone_uri, bare=True)
+            repo = backend(repo_path, create=True, src_url=clone_uri, bare=True)
             # add rhodecode hook into this repo
-            ScmModel().install_git_hook(repo=r)
+            ScmModel().install_git_hook(repo=repo)
         else:
             raise Exception('Undefined alias %s' % alias)
+        return repo
 
     def __rename_repo(self, old, new):
         """

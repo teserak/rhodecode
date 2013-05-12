@@ -68,42 +68,61 @@ class PullrequestsController(BaseRepoController):
         c.users_array = repo_model.get_users_js()
         c.users_groups_array = repo_model.get_users_groups_js()
 
-    def _get_repo_refs(self, repo, rev=None, branch_rev=None):
+    def _get_repo_refs(self, repo, rev=None, branch=None, branch_rev=None):
         """return a structure with repo's interesting changesets, suitable for
-        the selectors in pullrequest.html"""
+        the selectors in pullrequest.html
+
+        rev: a revision that must be in the list somehow and selected by default
+        branch: a branch that must be in the list and selected by default - even if closed
+        branch_rev: a revision of which peers should be preferred and available."""
         # list named branches that has been merged to this named branch - it should probably merge back
         peers = []
 
         if rev:
             rev = safe_str(rev)
 
+        if branch:
+            branch = safe_str(branch)
+
         if branch_rev:
             branch_rev = safe_str(branch_rev)
             # not restricting to merge() would also get branch point and be better
             # (especially because it would get the branch point) ... but is currently too expensive
-            revs = ["sort(parents(branch(id('%s')) and merge()) - branch(id('%s')))" %
-                    (branch_rev, branch_rev)]
             otherbranches = {}
-            for i in scmutil.revrange(repo._repo, revs):
+            for i in repo._repo.revs(
+                "sort(parents(branch(id(%s)) and merge()) - branch(id(%s)))",
+                branch_rev, branch_rev):
                 cs = repo.get_changeset(i)
                 otherbranches[cs.branch] = cs.raw_id
-            for branch, node in otherbranches.iteritems():
-                selected = 'branch:%s:%s' % (branch, node)
-                peers.append((selected, branch))
+            for abranch, node in otherbranches.iteritems():
+                selected = 'branch:%s:%s' % (abranch, node)
+                peers.append((selected, abranch))
 
         selected = None
+
         branches = []
-        for branch, branchrev in repo.branches.iteritems():
-            n = 'branch:%s:%s' % (branch, branchrev)
-            branches.append((n, branch))
+        for abranch, branchrev in repo.branches.iteritems():
+            n = 'branch:%s:%s' % (abranch, branchrev)
+            branches.append((n, abranch))
             if rev == branchrev:
                 selected = n
+            if branch == abranch:
+                selected = n
+                branch = None
+        if branch: # branch not in list - it is probably closed
+            revs = repo._repo.revs('max(branch(%s))', branch)
+            if revs:
+                cs = repo.get_changeset(revs[0])
+                selected = 'branch:%s:%s' % (branch, cs.raw_id)
+                branches.append((selected, branch))
+
         bookmarks = []
         for bookmark, bookmarkrev in repo.bookmarks.iteritems():
             n = 'book:%s:%s' % (bookmark, bookmarkrev)
             bookmarks.append((n, bookmark))
             if rev == bookmarkrev:
                 selected = n
+
         tags = []
         for tag, tagrev in repo.tags.iteritems():
             n = 'tag:%s:%s' % (tag, tagrev)
@@ -146,7 +165,6 @@ class PullrequestsController(BaseRepoController):
         Load context data needed for generating compare diff
 
         :param pull_request:
-        :type pull_request:
         """
         org_repo = pull_request.org_repo
         (org_ref_type,
@@ -180,12 +198,11 @@ class PullrequestsController(BaseRepoController):
         diff_limit = self.cut_off_limit if not fulldiff else None
 
         # we swap org/other ref since we run a simple diff on one repo
-        log.debug('running diff between %s@%s and %s@%s'
-                  % (org_repo.scm_instance.path, org_ref,
-                     other_repo.scm_instance.path, other_ref))
-        _diff = org_repo.scm_instance.get_diff(rev1=safe_str(other_ref[1]), rev2=safe_str(org_ref[1]))
+        log.debug('running diff between %s and %s in %s'
+                  % (other_ref, org_ref, org_repo.scm_instance.path))
+        txtdiff = org_repo.scm_instance.get_diff(rev1=safe_str(other_ref[1]), rev2=safe_str(org_ref[1]))
 
-        diff_processor = diffs.DiffProcessor(_diff or '', format='gitdiff',
+        diff_processor = diffs.DiffProcessor(txtdiff or '', format='gitdiff',
                                              diff_limit=diff_limit)
         _parsed = diff_processor.prepare()
 
@@ -197,16 +214,16 @@ class PullrequestsController(BaseRepoController):
         c.changes = {}
         c.lines_added = 0
         c.lines_deleted = 0
+
         for f in _parsed:
             st = f['stats']
-            if st[0] != 'b':
-                c.lines_added += st[0]
-                c.lines_deleted += st[1]
+            c.lines_added += st['added']
+            c.lines_deleted += st['deleted']
             fid = h.FID('', f['filename'])
             c.files.append([fid, f['operation'], f['filename'], f['stats']])
-            diff = diff_processor.as_html(enable_comments=enable_comments,
-                                          parsed_lines=[f])
-            c.changes[fid] = [f['operation'], f['filename'], diff]
+            htmldiff = diff_processor.as_html(enable_comments=enable_comments,
+                                              parsed_lines=[f])
+            c.changes[fid] = [f['operation'], f['filename'], htmldiff]
 
     @LoginRequired()
     @HasRepoPermissionAnyDecorator('repository.read', 'repository.write',
@@ -247,11 +264,12 @@ class PullrequestsController(BaseRepoController):
         # rev_start is not directly useful - its parent could however be used
         # as default for other and thus give a simple compare view
         #other_rev = request.POST.get('rev_start')
+        branch = request.GET.get('branch')
 
         c.org_repos = []
         c.org_repos.append((org_repo.repo_name, org_repo.repo_name))
         c.default_org_repo = org_repo.repo_name
-        c.org_refs, c.default_org_ref = self._get_repo_refs(org_repo.scm_instance, org_rev)
+        c.org_refs, c.default_org_ref = self._get_repo_refs(org_repo.scm_instance, rev=org_rev, branch=branch)
 
         c.other_repos = []
         other_repos_info = {}

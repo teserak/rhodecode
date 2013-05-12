@@ -140,8 +140,9 @@ class ReposGroupModel(BaseModel):
 
     def create(self, group_name, group_description, owner, parent=None, just_db=False):
         try:
+            user = self._get_user(owner)
             new_repos_group = RepoGroup()
-            new_repos_group.user = self._get_user(owner)
+            new_repos_group.user = user
             new_repos_group.group_description = group_description or group_name
             new_repos_group.parent_group = self._get_repo_group(parent)
             new_repos_group.group_name = new_repos_group.get_new_name(group_name)
@@ -150,10 +151,11 @@ class ReposGroupModel(BaseModel):
             perm_obj = self._create_default_perms(new_repos_group)
             self.sa.add(perm_obj)
 
-            #create an ADMIN permission for owner, later owner should go into
-            #the owner field of groups
-            self.grant_user_permission(repos_group=new_repos_group,
-                                       user=owner, perm='group.admin')
+            #create an ADMIN permission for owner except if we're super admin,
+            #later owner should go into the owner field of groups
+            if not user.is_admin:
+                self.grant_user_permission(repos_group=new_repos_group,
+                                           user=owner, perm='group.admin')
 
             if not just_db:
                 # we need to flush here, in order to check if database won't
@@ -167,9 +169,11 @@ class ReposGroupModel(BaseModel):
             raise
 
     def _update_permissions(self, repos_group, perms_new=None,
-                            perms_updates=None, recursive=False):
+                            perms_updates=None, recursive=False,
+                            check_perms=True):
         from rhodecode.model.repo import RepoModel
         from rhodecode.lib.auth import HasUserGroupPermissionAny
+
         if not perms_new:
             perms_new = []
         if not perms_updates:
@@ -222,8 +226,8 @@ class ReposGroupModel(BaseModel):
                 ## set for user group
                 else:
                     #check if we have permissions to alter this usergroup
-                    if HasUserGroupPermissionAny('usergroup.read', 'usergroup.write',
-                                                 'usergroup.admin')(member):
+                    req_perms = ('usergroup.read', 'usergroup.write', 'usergroup.admin')
+                    if not check_perms or HasUserGroupPermissionAny(*req_perms)(member):
                         _set_perm_group(obj, users_group=member, perm=perm)
             # set new permissions
             for member, perm, member_type in perms_new:
@@ -231,8 +235,8 @@ class ReposGroupModel(BaseModel):
                     _set_perm_user(obj, user=member, perm=perm)
                 else:
                     #check if we have permissions to alter this usergroup
-                    if HasUserGroupPermissionAny('usergroup.read', 'usergroup.write',
-                                                 'usergroup.admin')(member):
+                    req_perms = ('usergroup.read', 'usergroup.write', 'usergroup.admin')
+                    if not check_perms or HasUserGroupPermissionAny(*req_perms)(member):
                         _set_perm_group(obj, users_group=member, perm=perm)
             updates.append(obj)
             #if it's not recursive call

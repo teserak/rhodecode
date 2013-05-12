@@ -212,7 +212,13 @@ INPUT::
 OUTPUT::
 
     id : <id_given_in_input>
-    result : "User `<username>` set lock state for repo `<reponame>` to `true|false`"
+    result : {
+                 "repo": "<reponame>",
+                 "locked": "<bool true|false>",
+                 "locked_since": "<float lock_time>",
+                 "locked_by": "<username>",
+                 "msg": "User `<username>` set lock state for repo `<reponame>` to `<false|true>`"
+             }
     error :  null
 
 
@@ -350,7 +356,7 @@ INPUT::
     args :    {
                 "username" :  "<username>",
                 "email" :     "<useremail>",
-                "password" :  "<password>",
+                "password" :  "<password = Optional(None)>",
                 "firstname" : "<firstname> = Optional(None)",
                 "lastname" :  "<lastname> = Optional(None)",
                 "active" :    "<bool> = Optional(True)",

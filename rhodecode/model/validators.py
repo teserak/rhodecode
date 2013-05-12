@@ -11,7 +11,7 @@ from webhelpers.pylonslib.secure_form import authentication_token
 
 from formencode.validators import (
     UnicodeString, OneOf, Int, Number, Regex, Email, Bool, StringBoolean, Set,
-    NotEmpty, IPAddress, CIDR
+    NotEmpty, IPAddress, CIDR, String, FancyValidator
 )
 from rhodecode.lib.compat import OrderedSet
 from rhodecode.lib import ipaddr
@@ -25,7 +25,7 @@ from rhodecode.lib.auth import HasReposGroupPermissionAny, HasPermissionAny
 
 # silence warnings and pylint
 UnicodeString, OneOf, Int, Number, Regex, Email, Bool, StringBoolean, Set, \
-    NotEmpty, IPAddress, CIDR
+    NotEmpty, IPAddress, CIDR, String, FancyValidator
 
 log = logging.getLogger(__name__)
 
@@ -768,7 +768,8 @@ def ValidIp():
         messages = dict(
             badFormat=_('Please enter a valid IPv4 or IpV6 address'),
             illegalBits=_('The network size (bits) must be within the range'
-                ' of 0-32 (not %(bits)r)'))
+                ' of 0-32 (not %(bits)r)')
+        )
 
         def to_python(self, value, state):
             v = super(_validator, self).to_python(value, state)
@@ -800,10 +801,27 @@ def FieldKey():
     class _validator(formencode.validators.FancyValidator):
         messages = dict(
             badFormat=_('Key name can only consist of letters, '
-                        'underscore, dash or numbers'),)
+                        'underscore, dash or numbers')
+        )
 
         def validate_python(self, value, state):
             if not re.match('[a-zA-Z0-9_-]+$', value):
                 raise formencode.Invalid(self.message('badFormat', state),
+                                         value, state)
+    return _validator
+
+
+def BasePath():
+    class _validator(formencode.validators.FancyValidator):
+        messages = dict(
+            badPath=_('Filename cannot be inside a directory')
+        )
+
+        def _to_python(self, value, state):
+            return value
+
+        def validate_python(self, value, state):
+            if value != os.path.basename(value):
+                raise formencode.Invalid(self.message('badPath', state),
                                          value, state)
     return _validator

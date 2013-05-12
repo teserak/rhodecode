@@ -78,7 +78,7 @@ class MercurialRepository(BaseRepository):
     @property
     def _empty(self):
         """
-        Checks if repository is empty without any changesets
+        Checks if repository is empty ie. without any changesets
         """
         # TODO: Following raises errors when using InMemoryChangeset...
         # return len(self._repo.changelog) == 0
@@ -492,10 +492,12 @@ class MercurialRepository(BaseRepository):
         if branch_name:
             filter_.append('branch("%s")' % (branch_name))
 
-        if start_date:
+        if start_date and not end_date:
             filter_.append('date(">%s")' % start_date)
-        if end_date:
+        if end_date and not start_date:
             filter_.append('date("<%s")' % end_date)
+        if start_date and end_date:
+            filter_.append('date(">%s") and date("<%s")' % (start_date, end_date))
         if filter_:
             revisions = scmutil.revrange(self._repo, filter_)
         else:

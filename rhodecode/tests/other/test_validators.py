@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import unittest
 import formencode
 
 from rhodecode.tests import *
@@ -9,7 +8,6 @@ from rhodecode.model.users_group import UserGroupModel
 
 from rhodecode.model.meta import Session
 from rhodecode.model.repos_group import ReposGroupModel
-from rhodecode.config.routing import ADMIN_PREFIX
 from rhodecode.model.db import ChangesetStatus, Repository
 from rhodecode.model.changeset_status import ChangesetStatusModel
 from rhodecode.tests.fixture import Fixture
@@ -17,7 +15,7 @@ from rhodecode.tests.fixture import Fixture
 fixture = Fixture()
 
 
-class TestReposGroups(unittest.TestCase):
+class TestReposGroups(BaseTestCase):
 
     def setUp(self):
         pass

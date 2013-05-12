@@ -105,14 +105,12 @@ class CompareController(BaseRepoController):
                     'rev': 'id',
                 }
 
-            org_rev_spec = "max(%s('%s'))" % (_revset_predicates[org_ref[0]],
-                                              safe_str(org_ref[1]))
-            org_revs = scmutil.revrange(org_repo._repo, [org_rev_spec])
+            org_rev_spec = "max(%s(%%s))" % _revset_predicates[org_ref[0]]
+            org_revs = org_repo._repo.revs(org_rev_spec, safe_str(org_ref[1]))
             org_rev = org_repo._repo[org_revs[-1] if org_revs else -1].hex()
 
-            other_rev_spec = "max(%s('%s'))" % (_revset_predicates[other_ref[0]],
-                                                safe_str(other_ref[1]))
-            other_revs = scmutil.revrange(other_repo._repo, [other_rev_spec])
+            other_revs_spec = "max(%s(%%s))" % _revset_predicates[other_ref[0]]
+            other_revs = other_repo._repo.revs(other_revs_spec, safe_str(other_ref[1]))
             other_rev = other_repo._repo[other_revs[-1] if other_revs else -1].hex()
 
             #case two independent repos
@@ -128,21 +126,19 @@ class CompareController(BaseRepoController):
                 hgrepo = other_repo._repo
 
             if merge:
-                revs = ["ancestors(id('%s')) and not ancestors(id('%s')) and not id('%s')" %
-                        (other_rev, org_rev, org_rev)]
+                revs = hgrepo.revs("ancestors(id(%s)) and not ancestors(id(%s)) and not id(%s)",
+                                   other_rev, org_rev, org_rev)
 
-                ancestors = scmutil.revrange(hgrepo,
-                     ["ancestor(id('%s'), id('%s'))" % (org_rev, other_rev)])
+                ancestors = hgrepo.revs("ancestor(id(%s), id(%s))", org_rev, other_rev)
                 if ancestors:
                     # pick arbitrary ancestor - but there is usually only one
                     ancestor = hgrepo[ancestors[0]].hex()
             else:
                 # TODO: have both + and - changesets
-                revs = ["id('%s') :: id('%s') - id('%s')" %
-                        (org_rev, other_rev, org_rev)]
+                revs = hgrepo.revs("id(%s) :: id(%s) - id(%s)",
+                                   org_rev, other_rev, org_rev)
 
-            changesets = [other_repo.get_changeset(cs)
-                          for cs in scmutil.revrange(hgrepo, revs)]
+            changesets = [other_repo.get_changeset(rev) for rev in revs]
 
         elif alias == 'git':
             if org_repo != other_repo:
@@ -244,13 +240,11 @@ class CompareController(BaseRepoController):
 
         diff_limit = self.cut_off_limit if not c.fulldiff else None
 
-        log.debug('running diff between %s@%s and %s@%s'
-                  % (org_repo.scm_instance.path, org_ref,
-                     other_repo.scm_instance.path, other_ref))
-        _diff = org_repo.scm_instance.get_diff(rev1=safe_str(org_ref[1]),
-                                               rev2=safe_str(other_ref[1]))
+        log.debug('running diff between %s and %s in %s'
+                  % (org_ref, other_ref, org_repo.scm_instance.path))
+        txtdiff = org_repo.scm_instance.get_diff(rev1=safe_str(org_ref[1]), rev2=safe_str(other_ref[1]))
 
-        diff_processor = diffs.DiffProcessor(_diff or '', format='gitdiff',
+        diff_processor = diffs.DiffProcessor(txtdiff or '', format='gitdiff',
                                              diff_limit=diff_limit)
         _parsed = diff_processor.prepare()
 
@@ -264,12 +258,12 @@ class CompareController(BaseRepoController):
         c.lines_deleted = 0
         for f in _parsed:
             st = f['stats']
-            if st[0] != 'b':
-                c.lines_added += st[0]
-                c.lines_deleted += st[1]
+            if not st['binary']:
+                c.lines_added += st['added']
+                c.lines_deleted += st['deleted']
             fid = h.FID('', f['filename'])
             c.files.append([fid, f['operation'], f['filename'], f['stats']])
-            diff = diff_processor.as_html(enable_comments=False, parsed_lines=[f])
-            c.changes[fid] = [f['operation'], f['filename'], diff]
+            htmldiff = diff_processor.as_html(enable_comments=False, parsed_lines=[f])
+            c.changes[fid] = [f['operation'], f['filename'], htmldiff]
 
         return render('compare/compare_diff.html')

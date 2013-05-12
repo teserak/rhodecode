@@ -25,6 +25,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 # MA  02110-1301, USA.
 
+import time
 import traceback
 import logging
 
@@ -41,9 +42,10 @@ from rhodecode.model.repo import RepoModel
 from rhodecode.model.user import UserModel
 from rhodecode.model.users_group import UserGroupModel
 from rhodecode.model.db import Repository, RhodeCodeSetting, UserIpMap,\
-    Permission, User
+    Permission, User, Gist
 from rhodecode.lib.compat import json
 from rhodecode.lib.exceptions import DefaultUserException
+from rhodecode.model.gist import GistModel
 
 log = logging.getLogger(__name__)
 
@@ -265,27 +267,47 @@ class ApiController(JSONRPCController):
             lockobj = Repository.getlock(repo)
 
             if lockobj[0] is None:
-                return ('Repo `%s` not locked. Locked=`False`.'
-                        % (repo.repo_name))
+                _d = {
+                    'repo': repo.repo_name,
+                    'locked': False,
+                    'locked_since': None,
+                    'locked_by': None,
+                    'msg': 'Repo `%s` not locked.' % repo.repo_name
+                }
+                return _d
             else:
                 userid, time_ = lockobj
-                user = get_user_or_error(userid)
+                lock_user = get_user_or_error(userid)
+                _d = {
+                    'repo': repo.repo_name,
+                    'locked': True,
+                    'locked_since': time_,
+                    'locked_by': lock_user.username,
+                    'msg': ('Repo `%s` locked by `%s`. '
+                            % (repo.repo_name,
+                               json.dumps(time_to_datetime(time_))))
+                }
+                return _d
 
-                return ('Repo `%s` locked by `%s`. Locked=`True`. '
-                        'Locked since: `%s`'
-                    % (repo.repo_name, user.username,
-                       json.dumps(time_to_datetime(time_))))
-
+        # force locked state through a flag
         else:
             locked = str2bool(locked)
             try:
                 if locked:
-                    Repository.lock(repo, user.user_id)
+                    lock_time = time.time()
+                    Repository.lock(repo, user.user_id, lock_time)
                 else:
+                    lock_time = None
                     Repository.unlock(repo)
-
-                return ('User `%s` set lock state for repo `%s` to `%s`'
-                        % (user.username, repo.repo_name, locked))
+                _d = {
+                    'repo': repo.repo_name,
+                    'locked': locked,
+                    'locked_since': lock_time,
+                    'locked_by': user.username,
+                    'msg': ('User `%s` set lock state for repo `%s` to `%s`'
+                            % (user.username, repo.repo_name, locked))
+                }
+                return _d
             except Exception:
                 log.error(traceback.format_exc())
                 raise JSONRPCError(
@@ -386,7 +408,7 @@ class ApiController(JSONRPCController):
         return result
 
     @HasPermissionAllDecorator('hg.admin')
-    def create_user(self, apiuser, username, email, password,
+    def create_user(self, apiuser, username, email, password=Optional(None),
                     firstname=Optional(None), lastname=Optional(None),
                     active=Optional(True), admin=Optional(False),
                     extern_type=Optional(None), extern_name=Optional(None)):
@@ -871,6 +893,7 @@ class ApiController(JSONRPCController):
                                                             fork_name)
             )
 
+    # perms handled inside
     def delete_repo(self, apiuser, repoid, forks=Optional(None)):
         """
         Deletes a given repository
@@ -1047,3 +1070,44 @@ class ApiController(JSONRPCController):
                     users_group.users_group_name, repo.repo_name
                 )
             )
+
+    def create_gist(self, apiuser, files, owner=Optional(OAttr('apiuser')),
+                    gist_type=Optional(Gist.GIST_PUBLIC),
+                    gist_lifetime=Optional(-1),
+                    gist_description=Optional('')):
+
+        try:
+            if isinstance(owner, Optional):
+                owner = apiuser.user_id
+
+            owner = get_user_or_error(owner)
+            description = Optional.extract(gist_description)
+            gist_type = Optional.extract(gist_type)
+            gist_lifetime = Optional.extract(gist_lifetime)
+
+            # files: {
+            #    'filename': {'content':'...', 'lexer': null},
+            #    'filename2': {'content':'...', 'lexer': null}
+            #}
+            gist = GistModel().create(description=description,
+                                      owner=owner,
+                                      gist_mapping=files,
+                                      gist_type=gist_type,
+                                      lifetime=gist_lifetime)
+            Session().commit()
+            return dict(
+                msg='created new gist',
+                gist_url=gist.gist_url(),
+                gist_id=gist.gist_access_id,
+                gist_type=gist.gist_type,
+                files=files.keys()
+            )
+        except Exception:
+            log.error(traceback.format_exc())
+            raise JSONRPCError('failed to create gist')
+
+    def update_gist(self, apiuser):
+        pass
+
+    def delete_gist(self, apiuser):
+        pass

@@ -24,12 +24,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import time
 import logging
 import datetime
 import traceback
 import hashlib
-import time
-from collections import defaultdict
+import collections
 
 from sqlalchemy import *
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -1009,8 +1009,10 @@ class Repository(Base, BaseModel):
         return data
 
     @classmethod
-    def lock(cls, repo, user_id):
-        repo.locked = [user_id, time.time()]
+    def lock(cls, repo, user_id, lock_time=None):
+        if not lock_time:
+            lock_time = time.time()
+        repo.locked = [user_id, lock_time]
         Session().add(repo)
         Session().commit()
 
@@ -1120,7 +1122,7 @@ class Repository(Base, BaseModel):
             .filter(ChangesetComment.repo == self)
         if revisions:
             cmts = cmts.filter(ChangesetComment.revision.in_(revisions))
-        grouped = defaultdict(list)
+        grouped = collections.defaultdict(list)
         for cmt in cmts.all():
             grouped[cmt.revision].append(cmt)
         return grouped
@@ -1130,7 +1132,6 @@ class Repository(Base, BaseModel):
         Returns statuses for this repository
 
         :param revisions: list of revisions to get statuses for
-        :type revisions: list
         """
 
         statuses = ChangesetStatus.query()\
@@ -2120,6 +2121,92 @@ class UserNotification(Base, BaseModel):
     def mark_as_read(self):
         self.read = True
         Session().add(self)
+
+
+class Gist(Base, BaseModel):
+    __tablename__ = 'gists'
+    __table_args__ = (
+        Index('g_gist_access_id_idx', 'gist_access_id'),
+        Index('g_created_on_idx', 'created_on'),
+        {'extend_existing': True, 'mysql_engine': 'InnoDB',
+         'mysql_charset': 'utf8'}
+    )
+    GIST_PUBLIC = u'public'
+    GIST_PRIVATE = u'private'
+
+    gist_id = Column('gist_id', Integer(), primary_key=True)
+    gist_access_id = Column('gist_access_id', UnicodeText(1024))
+    gist_description = Column('gist_description', UnicodeText(1024))
+    gist_owner = Column('user_id', Integer(), ForeignKey('users.user_id'), nullable=True)
+    gist_expires = Column('gist_expires', Float(), nullable=False)
+    gist_type = Column('gist_type', Unicode(128), nullable=False)
+    created_on = Column('created_on', DateTime(timezone=False), nullable=False, default=datetime.datetime.now)
+    modified_at = Column('modified_at', DateTime(timezone=False), nullable=False, default=datetime.datetime.now)
+
+    owner = relationship('User')
+
+    @classmethod
+    def get_or_404(cls, id_):
+        res = cls.query().filter(cls.gist_access_id == id_).scalar()
+        if not res:
+            raise HTTPNotFound
+        return res
+
+    @classmethod
+    def get_by_access_id(cls, gist_access_id):
+        return cls.query().filter(cls.gist_access_id == gist_access_id).scalar()
+
+    def gist_url(self):
+        import rhodecode
+        alias_url = rhodecode.CONFIG.get('gist_alias_url')
+        if alias_url:
+            return alias_url.replace('{gistid}', self.gist_access_id)
+
+        from pylons import url
+        return url('gist', id=self.gist_access_id, qualified=True)
+
+    @classmethod
+    def base_path(cls):
+        """
+        Returns base path when all gists are stored
+
+        :param cls:
+        """
+        from rhodecode.model.gist import GIST_STORE_LOC
+        q = Session().query(RhodeCodeUi)\
+            .filter(RhodeCodeUi.ui_key == URL_SEP)
+        q = q.options(FromCache("sql_cache_short", "repository_repo_path"))
+        return os.path.join(q.one().ui_value, GIST_STORE_LOC)
+
+    def get_api_data(self):
+        """
+        Common function for generating gist related data for API
+        """
+        gist = self
+        data = dict(
+            gist_id=gist.gist_id,
+            type=gist.gist_type,
+            access_id=gist.gist_access_id,
+            description=gist.gist_description,
+            url=gist.gist_url(),
+            expires=gist.gist_expires,
+            created_on=gist.created_on,
+        )
+        return data
+
+    def __json__(self):
+        data = dict(
+        )
+        data.update(self.get_api_data())
+        return data
+    ## SCM functions
+
+    @property
+    def scm_instance(self):
+        from rhodecode.lib.vcs import get_repo
+        base_path = self.base_path()
+        return get_repo(os.path.join(*map(safe_str,
+                                          [base_path, self.gist_access_id])))
 
 
 class DbMigrateVersion(Base, BaseModel):

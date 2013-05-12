@@ -1,5 +1,6 @@
 from __future__ import with_statement
 
+import time
 import datetime
 from rhodecode.lib import vcs
 from rhodecode.tests.vcs.base import BackendTestMixin
@@ -12,9 +13,10 @@ from rhodecode.lib.vcs.nodes import (
 )
 from rhodecode.lib.vcs.exceptions import (
     BranchDoesNotExistError, ChangesetDoesNotExistError,
-    RepositoryError
+    RepositoryError, EmptyRepositoryError
 )
 from rhodecode.lib.vcs.utils.compat import unittest
+from rhodecode.tests.vcs.conf import get_new_dir
 
 
 class TestBaseChangeset(unittest.TestCase):
@@ -197,6 +199,14 @@ class ChangesetsTestCaseMixin(BackendTestMixin):
         changesets = list(self.repo.get_changesets(start=2, end=3))
         self.assertEqual(len(changesets), 2)
 
+    def test_get_changesets_on_empty_repo_raises_EmptyRepository_error(self):
+        Backend = self.get_backend()
+        repo_path = get_new_dir(str(time.time()))
+        repo = Backend(repo_path, create=True)
+
+        with self.assertRaises(EmptyRepositoryError):
+            list(repo.get_changesets(start='foobar'))
+
     def test_get_changesets_includes_end_changeset(self):
         second_id = self.repo.revisions[1]
         changesets = list(self.repo.get_changesets(end=second_id))
@@ -208,6 +218,14 @@ class ChangesetsTestCaseMixin(BackendTestMixin):
             self.assertGreaterEqual(cs.date, start_date)
 
     def test_get_changesets_respects_end_date(self):
+        start_date = datetime.datetime(2010, 1, 1)
+        end_date = datetime.datetime(2010, 2, 1)
+        for cs in self.repo.get_changesets(start_date=start_date,
+                                           end_date=end_date):
+            self.assertGreaterEqual(cs.date, start_date)
+            self.assertLessEqual(cs.date, end_date)
+
+    def test_get_changesets_respects_start_date_and_end_date(self):
         end_date = datetime.datetime(2010, 2, 1)
         for cs in self.repo.get_changesets(end_date=end_date):
             self.assertLessEqual(cs.date, end_date)
