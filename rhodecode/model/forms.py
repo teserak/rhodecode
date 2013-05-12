@@ -366,18 +366,17 @@ def DefaultsForm(edit=False, old_data={}, supported_backends=BACKENDS.keys()):
     return _DefaultsForm
 
 
-def AuthSettingsForm():
+def AuthSettingsForm(current_active_modules):
     class _AuthSettingsForm(formencode.Schema):
         allow_extra_fields = True
         filter_extra_fields = True
-        auth_plugins = v.UnicodeString(strip=True, not_empty=True)
+        auth_plugins = All(v.ValidAuthPlugins(),
+                           v.UniqueListFromString(not_empty=True))
 
         def __init__(self, *args, **kwargs):
             # The auth plugins tell us what form validators they use
-            fields = RhodeCodeSetting.get_auth_settings()
-            auth_plugins = fields.get("auth_plugins")
-            if auth_plugins:
-                for module in auth_plugins.split(","):
+            if current_active_modules:
+                for module in current_active_modules:
                     plugin = rhodecode.lib.auth.loadplugin(module)
                     pluginName = plugin.name()
                     for sv in plugin.plugin_settings():

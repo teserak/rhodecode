@@ -503,32 +503,15 @@ class DbManage(object):
         hggit.ui_active = False
         self.sa.add(hggit)
 
-    def create_crowd_options(self, skip_existing=False):
-        """Creates crowd settings"""
+    def create_auth_plugin_options(self, skip_existing=False):
+        """
+        Create default auth plugin settings, and make it active
 
-        for k, v in [('crowd_active', 'false'),
-                     ('crowd_host', ''),
-                     ('crowd_port', '8095'),
-                     ('crowd_app_name', ''),
-                     ('crowd_app_password', ''),
-                     ('crowd_admin_groups', '')]:
-            if skip_existing and RhodeCodeSetting.get_by_name(k) != None:
-                log.debug('Skipping option %s' % k)
-                continue
-            setting = RhodeCodeSetting(k, v)
-            self.sa.add(setting)
+        :param skip_existing:
+        """
 
-    def create_ldap_options(self, skip_existing=False):
-        """Creates ldap settings"""
-
-        for k, v in [('ldap_active', 'false'), ('ldap_host', ''),
-                    ('ldap_port', '389'), ('ldap_tls_kind', 'PLAIN'),
-                    ('ldap_tls_reqcert', ''), ('ldap_dn_user', ''),
-                    ('ldap_dn_pass', ''), ('ldap_base_dn', ''),
-                    ('ldap_filter', ''), ('ldap_search_scope', ''),
-                    ('ldap_attr_login', ''), ('ldap_attr_firstname', ''),
-                    ('ldap_attr_lastname', ''), ('ldap_attr_email', '')]:
-
+        for k, v in [('auth_plugins', 'rhodecode.lib.auth_modules.auth_rhodecode'),
+                     ('auth_rhodecode_enabled', 'True')]:
             if skip_existing and RhodeCodeSetting.get_by_name(k) != None:
                 log.debug('Skipping option %s' % k)
                 continue
@@ -693,8 +676,7 @@ class DbManage(object):
         self.sa.add(sett5)
         self.sa.add(sett6)
 
-        self.create_crowd_options()
-        self.create_ldap_options()
+        self.create_auth_plugin_options()
         self.create_default_options()
 
         log.info('created ui config')

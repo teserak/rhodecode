@@ -322,11 +322,11 @@ def authenticate(username, password):
         except (ImportError, AttributeError, TypeError), e:
             raise ImportError('Failed to load authentication module %s : %s'
                               % (module, str(e)))
-        pluginConfigSettings = plugin.plugin_settings()
         pluginName = plugin.name()
         if (user) and (user.extern_type) and (user.extern_type != pluginName):
             continue
 
+        pluginConfigSettings = plugin.plugin_settings()
         pluginSettings = {}
         for v in pluginConfigSettings:
             pluginSettings[v["name"]] = RhodeCodeSetting.\

@@ -16,7 +16,7 @@ from formencode.validators import (
 from rhodecode.lib.compat import OrderedSet
 from rhodecode.lib import ipaddr
 from rhodecode.lib.utils import repo_name_slug
-from rhodecode.lib.utils2 import safe_int, str2bool
+from rhodecode.lib.utils2 import safe_int, str2bool, aslist
 from rhodecode.model.db import RepoGroup, Repository, UserGroup, User,\
     ChangesetStatus
 from rhodecode.lib.exceptions import LdapImportError
@@ -40,12 +40,16 @@ class UniqueList(formencode.FancyValidator):
     )
 
     def _to_python(self, value, state):
+        def make_unique(value):
+            seen = []
+            return [c for c in value if not (c in seen or seen.append(c))]
+
         if isinstance(value, list):
-            return value
+            return make_unique(value)
         elif isinstance(value, set):
-            return list(value)
+            return make_unique(list(value))
         elif isinstance(value, tuple):
-            return list(value)
+            return make_unique(list(value))
         elif value is None:
             return []
         else:
@@ -53,6 +57,13 @@ class UniqueList(formencode.FancyValidator):
 
     def empty_value(self, value):
         return []
+
+
+class UniqueListFromString(UniqueList):
+    def _to_python(self, value, state):
+        if isinstance(value, basestring):
+            value = aslist(value, ',')
+        return super(UniqueListFromString, self)._to_python(value, state)
 
 
 class StateObj(object):
@@ -824,4 +835,34 @@ def BasePath():
             if value != os.path.basename(value):
                 raise formencode.Invalid(self.message('badPath', state),
                                          value, state)
+    return _validator
+
+
+def ValidAuthPlugins():
+    class _validator(formencode.validators.FancyValidator):
+        messages = dict(
+            import_duplicate=_('Plugins %(loaded)s and %(next_to_load)s both export the same name')
+        )
+
+        def _to_python(self, value, state):
+            # filter empty values
+            return filter(lambda s: s not in [None, ''], value)
+
+        def validate_python(self, value, state):
+            from rhodecode.lib import auth
+            module_list = value
+            unique_names = {}
+            try:
+                for module in module_list:
+                    plugin = auth.loadplugin(module)
+                    plugin_name = plugin.name()
+                    if plugin_name in unique_names:
+                        msg = M(self, 'import_duplicate', state,
+                                loaded=unique_names[plugin_name],
+                                next_to_load=plugin_name)
+                        raise formencode.Invalid(msg, value, state)
+                    unique_names[plugin_name] = plugin
+            except (ImportError, AttributeError, TypeError), e:
+                raise formencode.Invalid(str(e), value, state)
+
     return _validator
