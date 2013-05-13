@@ -329,8 +329,9 @@ def authenticate(username, password):
         pluginConfigSettings = plugin.plugin_settings()
         pluginSettings = {}
         for v in pluginConfigSettings:
-            pluginSettings[v["name"]] = RhodeCodeSetting.\
-                get_by_name("auth_%s_%s" % (pluginName, v["name"])).app_settings_value
+            conf_key = "auth_%s_%s" % (pluginName, v["name"])
+            setting = RhodeCodeSetting.get_by_name(conf_key)
+            pluginSettings[v["name"]] = setting.app_settings_value if setting else None
         log.debug(formatted_json(pluginSettings))
         if pluginSettings["enabled"] == "False":
             log.info("Authentication plugin %s is disabled, skipping for %s"
