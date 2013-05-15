@@ -349,7 +349,7 @@ class DbManage(object):
         used mostly for anonymous access
         """
         def_user = self.sa.query(User)\
-                .filter(User.username == 'default')\
+                .filter(User.username == User.DEFAULT_USER)\
                 .one()
 
         def_user.name = 'Anonymous'

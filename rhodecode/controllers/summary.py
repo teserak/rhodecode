@@ -42,7 +42,7 @@ from rhodecode.lib.compat import product
 from rhodecode.lib.vcs.exceptions import ChangesetError, EmptyRepositoryError, \
     NodeDoesNotExistError
 from rhodecode.config.conf import ALL_READMES, ALL_EXTS, LANGUAGES_EXTENSIONS_MAP
-from rhodecode.model.db import Statistics, CacheInvalidation
+from rhodecode.model.db import Statistics, CacheInvalidation, User
 from rhodecode.lib.utils import jsonify
 from rhodecode.lib.utils2 import safe_unicode, safe_str
 from rhodecode.lib.auth import LoginRequired, HasRepoPermissionAnyDecorator,\
@@ -136,7 +136,7 @@ class SummaryController(BaseRepoController):
     def index(self, repo_name):
         c.dbrepo = dbrepo = c.rhodecode_db_repo
         _load_changelog_summary()
-        if self.rhodecode_user.username == 'default':
+        if self.rhodecode_user.username == User.DEFAULT_USER:
             # for default(anonymous) user we don't need to pass credentials
             username = ''
             password = ''

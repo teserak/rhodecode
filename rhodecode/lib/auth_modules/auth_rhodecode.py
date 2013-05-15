@@ -75,7 +75,7 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
         log.debug(formatted_json(user_attrs))
         if userobj.active:
             password_match = auth.RhodeCodeCrypto.hash_check(password, userobj.password)
-            if userobj.username == 'default' and userobj.active:
+            if userobj.username == User.DEFAULT_USER and userobj.active:
                 log.info('user %s authenticated correctly as anonymous user' %
                          username)
                 return user_attrs

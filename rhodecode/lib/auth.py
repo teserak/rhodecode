@@ -416,7 +416,7 @@ class NotAnonymous(object):
 
         log.debug('Checking if user is not anonymous @%s' % cls)
 
-        anonymous = self.user.username == 'default'
+        anonymous = self.user.username == User.DEFAULT_USER
 
         if anonymous:
             p = url.current()
@@ -457,7 +457,7 @@ class PermsDecorator(object):
 
         else:
             log.debug('Permission denied for %s %s' % (cls, self.user))
-            anonymous = self.user.username == 'default'
+            anonymous = self.user.username == User.DEFAULT_USER
 
             if anonymous:
                 p = url.current()

@@ -232,7 +232,7 @@ class UsersController(BaseController):
         # url('edit_user', id=ID)
         c.user = User.get_or_404(id)
 
-        if c.user.username == 'default':
+        if c.user.username == User.DEFAULT_USER:
             h.flash(_("You can't edit this user"), category='warning')
             return redirect(url('users'))
 

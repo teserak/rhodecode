@@ -112,7 +112,7 @@ class PermissionsController(BaseController):
         #    h.form(url('permission', id=ID),
         #           method='put')
         # url('permission', id=ID)
-        if id == 'default':
+        if id == User.DEFAULT_USER:
             c.user = default_user = User.get_default_user()
             c.perm_user = AuthUser(user_id=default_user.user_id)
             c.user_ip_map = UserIpMap.query()\
@@ -173,7 +173,7 @@ class PermissionsController(BaseController):
         #url('edit_permission', id=ID)
 
         #this form can only edit default user permissions
-        if id == 'default':
+        if id == User.DEFAULT_USER:
             c.user = User.get_default_user()
             defaults = {'anonymous': c.user.active}
             c.perm_user = c.user.AuthUser

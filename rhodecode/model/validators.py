@@ -608,7 +608,7 @@ def ValidPerms(type_='repo'):
                     t = {'u': 'user',
                          'g': 'users_group'
                     }[k[0]]
-                    if member == 'default':
+                    if member == User.DEFAULT_USER:
                         if str2bool(value.get('repo_private')):
                             # set none for default when updating to
                             # private repo protects agains form manipulation

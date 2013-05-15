@@ -35,7 +35,7 @@ from pylons.i18n.translation import _
 from rhodecode.model.forms import GistForm
 from rhodecode.model.gist import GistModel
 from rhodecode.model.meta import Session
-from rhodecode.model.db import Gist
+from rhodecode.model.db import Gist, User
 from rhodecode.lib import helpers as h
 from rhodecode.lib.base import BaseController, render
 from rhodecode.lib.auth import LoginRequired, NotAnonymous
@@ -65,8 +65,9 @@ class GistsController(BaseController):
     def index(self, format='html'):
         """GET /admin/gists: All items in the collection"""
         # url('gists')
-        c.show_private = request.GET.get('private') and c.rhodecode_user.username != 'default'
-        c.show_public = request.GET.get('public') and c.rhodecode_user.username != 'default'
+        not_default_user = c.rhodecode_user.username != User.DEFAULT_USER
+        c.show_private = request.GET.get('private') and not_default_user
+        c.show_public = request.GET.get('public') and not_default_user
 
         gists = Gist().query()\
             .filter(or_(Gist.gist_expires == -1, Gist.gist_expires >= time.time()))\

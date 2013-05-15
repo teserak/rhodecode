@@ -399,9 +399,9 @@ class SettingsController(BaseController):
         c.extern_type = c.user.extern_type
         c.extern_name = c.user.extern_name
 
-        if c.user.username == 'default':
+        if c.user.username == User.DEFAULT_USER:
             h.flash(_("You can't edit this user since it's"
-              " crucial for entire application"), category='warning')
+                      " crucial for entire application"), category='warning')
             return redirect(url('users'))
 
         #json used to render the grid

@@ -258,7 +258,7 @@ class UserModel(BaseModel):
         from rhodecode.lib.auth import get_crypt_password
         try:
             user = self.get(user_id, cache=False)
-            if user.username == 'default':
+            if user.username == User.DEFAULT_USER:
                 raise DefaultUserException(
                                 _("You can't Edit this user since it's"
                                   " crucial for entire application"))
@@ -282,7 +282,7 @@ class UserModel(BaseModel):
         from rhodecode.lib.auth import get_crypt_password
         try:
             user = self._get_user(user)
-            if user.username == 'default':
+            if user.username == User.DEFAULT_USER:
                 raise DefaultUserException(
                     _("You can't Edit this user since it's"
                       " crucial for entire application")
@@ -304,7 +304,7 @@ class UserModel(BaseModel):
         user = self._get_user(user)
 
         try:
-            if user.username == 'default':
+            if user.username == User.DEFAULT_USER:
                 raise DefaultUserException(
                     _(u"You can't remove this user since it's"
                       " crucial for entire application")
