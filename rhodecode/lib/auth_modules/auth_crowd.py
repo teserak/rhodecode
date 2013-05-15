@@ -26,8 +26,7 @@
 import base64
 import logging
 import urllib2
-from rhodecode.lib import auth
-from rhodecode.model import validators as v
+from rhodecode.lib import auth_modules
 from rhodecode.lib.compat import json, formatted_json
 from rhodecode.model.db import User
 
@@ -128,7 +127,7 @@ class CrowdServer(object):
         return self._request(url)
 
 
-class RhodeCodeAuthPlugin(auth.RhodeCodeAuthPluginBase):
+class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
     def name(self):
         return "crowd"
 
@@ -166,44 +165,44 @@ class RhodeCodeAuthPlugin(auth.RhodeCodeAuthPluginBase):
         settings = [
             {
                 "name": "host",
-                "validator": v.UnicodeString(strip=True),
+                "validator": self.validators.UnicodeString(strip=True),
                 "type": "string",
                 "description": "The FQDN or IP of the Atlassian CROWD Server",
                 "default": "127.0.0.1",
                 "formname": "Host"
-                },
-           {
+            },
+            {
                 "name": "port",
-                "validator": v.Number(strip=True),
+                "validator": self.validators.Number(strip=True),
                 "type": "int",
                 "description": "The Port in use by the Atlassian CROWD Server",
                 "default": 8095,
                 "formname": "Port"
-                },
+            },
             {
                 "name": "app_name",
-                "validator": v.UnicodeString(strip=True),
+                "validator": self.validators.UnicodeString(strip=True),
                 "type": "string",
                 "description": "The Application Name to authenticate to CROWD",
                 "default": "",
                 "formname": "Application Name"
-                },
+            },
             {
                 "name": "app_password",
-                "validator": v.UnicodeString(strip=True),
+                "validator": self.validators.UnicodeString(strip=True),
                 "type": "string",
                 "description": "The password to authenticate to CROWD",
                 "default": "",
                 "formname": "Application Password"
-                },
+            },
             {
                 "name": "admin_groups",
-                "validator": v.UnicodeString(strip=True),
+                "validator": self.validators.UnicodeString(strip=True),
                 "type": "string",
                 "description": "A comma separated list of group names that identify users as RhodeCode Administrators",
                 "formname": "Admin Groups"
-                }
-            ]
+            }
+        ]
         return settings
 
     def use_fake_password(self):
@@ -213,27 +212,21 @@ class RhodeCodeAuthPlugin(auth.RhodeCodeAuthPluginBase):
         def_user_perms = User.get_by_username('default').AuthUser.permissions['global']
         return 'hg.extern_activate.auto' in def_user_perms
 
-    def auth(self, userobj, user, passwd, settings):
+    def auth(self, userobj, username, password, settings, **kwargs):
         """
-        Given a user name, a plaintext password, and a settings object (containing all the keys
-        needed as listed in settings() ), authenticate this user's login attempt.
+        Given a user object (which may be null), username, a plaintext password,
+        and a settings object (containing all the keys needed as listed in settings()),
+        authenticate this user's login attempt.
 
         Return None on failure. On success, return a dictionary of the form:
 
-        {
-            "name": "short user name",
-            "firstname": "first name",
-            "lastname": "last name",
-            "email": "email address",
-            "groups": ["list", "of", "groups"],
-            "extern_name": "name in external source of record",
-            "admin": True|False
-        }
+            see: RhodeCodeAuthPluginBase.auth_func_attrs
+        This is later validated for correctness
         """
         log.debug("Crowd settings: \n%s" % (formatted_json.dumps(settings)))
         server = CrowdServer(**settings)
         server.set_credentials(settings["app_name"], settings["app_password"])
-        crowdUser = server.user_auth(user, passwd)
+        crowdUser = server.user_auth(username, password)
         log.debug("Crowd returned: \n%s" % (formatted_json.dumps(crowdUser)))
         if not crowdUser["status"]:
             return None
@@ -242,17 +235,22 @@ class RhodeCodeAuthPlugin(auth.RhodeCodeAuthPluginBase):
         log.debug("Crowd groups: \n%s" % (formatted_json.dumps(res)))
         crowdUser["groups"] = [x["name"] for x in res["groups"]]
 
-        rcuser = {}
-        rcuser["firstname"] = crowdUser["first-name"]
-        rcuser["lastname"] = crowdUser["last-name"]
-        rcuser["email"] = crowdUser["email"]
-        rcuser["active"] = True
-        rcuser["extern_name"] = crowdUser["name"]
-        rcuser["groups"] = crowdUser["groups"]
-        rcuser["admin"] = False
-        for group in settings["admin_groups"]:
-            if group in rcuser["groups"]:
-                rcuser["admin"] = True
+        user_attrs = {
+            'username': username,
+            'firstname': crowdUser["first-name"],
+            'lastname': crowdUser["last-name"],
+            'groups': crowdUser["groups"],
+            'email': crowdUser["email"],
+            'admin': False,
+            'active': True,
+            'active_from_extern': crowdUser.get('active'),
+            'extern_name': crowdUser["name"]
+        }
 
-        log.debug("Final crowd user object: \n%s" % (formatted_json.dumps(rcuser)))
-        return rcuser
+        # set an admin if we're in admin_groups of crowd
+        for group in settings["admin_groups"]:
+            if group in user_attrs["groups"]:
+                user_attrs["admin"] = True
+        log.debug("Final crowd user object: \n%s" % (formatted_json.dumps(user_attrs)))
+        log.info('user %s authenticated correctly' % user_attrs['username'])
+        return user_attrs

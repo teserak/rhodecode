@@ -37,10 +37,11 @@ from pylons import request, response, session, tmpl_context as c, url
 import rhodecode.lib.helpers as h
 from rhodecode.lib.auth import AuthUser, HasPermissionAnyDecorator
 from rhodecode.lib.base import BaseController, render
-from rhodecode.model.db import User
+from rhodecode.model.db import User, RhodeCodeSetting
 from rhodecode.model.forms import LoginForm, RegisterForm, PasswordResetForm
 from rhodecode.model.user import UserModel
 from rhodecode.model.meta import Session
+from rhodecode.lib.utils2 import aslist
 
 
 log = logging.getLogger(__name__)
@@ -50,6 +51,35 @@ class LoginController(BaseController):
 
     def __before__(self):
         super(LoginController, self).__before__()
+
+    def _store_user_in_session(self, username, remember=False):
+        user = User.get_by_username(username, case_insensitive=True)
+        auth_user = AuthUser(user.user_id)
+        auth_user.set_authenticated()
+        cs = auth_user.get_cookie_store()
+        session['rhodecode_user'] = cs
+        user.update_lastlogin()
+        Session().commit()
+
+        # If they want to be remembered, update the cookie
+        if remember:
+            _year = (datetime.datetime.now() +
+                     datetime.timedelta(seconds=60 * 60 * 24 * 365))
+            session._set_cookie_expires(_year)
+
+        session.save()
+
+        log.info('user %s is now authenticated and stored in '
+                 'session, session attrs %s' % (username, cs))
+
+        # dumps session attrs back to cookie
+        session._update_cookie_out()
+        # we set new cookie
+        headers = None
+        if session.request['set_cookie']:
+            # send set-cookie headers back to response to update cookie
+            headers = [('Set-Cookie', session.request['cookie_out'])]
+        return headers
 
     def index(self):
         # redirect if already logged in
@@ -66,34 +96,9 @@ class LoginController(BaseController):
                 session.invalidate()
                 c.form_result = login_form.to_python(dict(request.POST))
                 # form checks for username/password, now we're authenticated
-                username = c.form_result['username']
-                user = User.get_by_username(username, case_insensitive=True)
-                auth_user = AuthUser(user.user_id)
-                auth_user.set_authenticated()
-                cs = auth_user.get_cookie_store()
-                session['rhodecode_user'] = cs
-                user.update_lastlogin()
-                Session().commit()
-
-                # If they want to be remembered, update the cookie
-                if c.form_result['remember']:
-                    _year = (datetime.datetime.now() +
-                             datetime.timedelta(seconds=60 * 60 * 24 * 365))
-                    session._set_cookie_expires(_year)
-
-                session.save()
-
-                log.info('user %s is now authenticated and stored in '
-                         'session, session attrs %s' % (username, cs))
-
-                # dumps session attrs back to cookie
-                session._update_cookie_out()
-
-                # we set new cookie
-                headers = None
-                if session.request['set_cookie']:
-                    # send set-cookie headers back to response to update cookie
-                    headers = [('Set-Cookie', session.request['cookie_out'])]
+                headers = self._store_user_in_session(
+                                        username=c.form_result['username'],
+                                        remember=c.form_result['remember'])
 
                 allowed_schemes = ['http', 'https']
                 if c.came_from:
@@ -120,7 +125,14 @@ class LoginController(BaseController):
                     errors=errors.error_dict or {},
                     prefix_error=False,
                     encoding="UTF-8")
-
+        #check if we use container plugin, and try to login using it.
+        auth_plugins = RhodeCodeSetting.get_auth_plugins()
+        if 'rhodecode.lib.auth_modules.auth_container' in auth_plugins:
+            from rhodecode.lib import auth_modules
+            auth_info = auth_modules.authenticate('', '', request.environ)
+            if auth_info:
+                headers = self._store_user_in_session(auth_info.get('username'))
+                raise HTTPFound(location=url('home'), headers=headers)
         return render('/login.html')
 
     @HasPermissionAnyDecorator('hg.admin', 'hg.register.auto_activate',

@@ -379,7 +379,7 @@ class UserModel(BaseModel):
 
         return True
 
-    def fill_data(self, auth_user, user_id=None, api_key=None):
+    def fill_data(self, auth_user, user_id=None, api_key=None, username=None):
         """
         Fetches auth_user by user_id,or api_key if present.
         Fills auth_user attributes with those taken from database.
@@ -389,15 +389,18 @@ class UserModel(BaseModel):
         :param auth_user: instance of user to set attributes
         :param user_id: user id to fetch by
         :param api_key: api key to fetch by
+        :param username: username to fetch by
         """
-        if user_id is None and api_key is None:
-            raise Exception('You need to pass user_id or api_key')
+        if user_id is None and api_key is None and username is None:
+            raise Exception('You need to pass user_id, api_key or username')
 
         try:
-            if api_key:
-                dbuser = self.get_by_api_key(api_key)
-            else:
+            if user_id:
                 dbuser = self.get(user_id)
+            elif api_key:
+                dbuser = self.get_by_api_key(api_key)
+            elif username:
+                dbuser = self.get_by_username(username)
 
             if dbuser is not None and dbuser.active:
                 log.debug('filling %s data' % dbuser)

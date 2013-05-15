@@ -25,6 +25,7 @@
 
 import logging
 from rhodecode.lib import auth
+from rhodecode.lib import auth_modules
 from rhodecode.lib.compat import json, formatted_json
 from rhodecode.model.db import User
 
@@ -32,7 +33,7 @@ from rhodecode.model.db import User
 log = logging.getLogger(__name__)
 
 
-class RhodeCodeAuthPlugin(auth.RhodeCodeAuthPluginBase):
+class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
     def __init__(self):
         pass
 
@@ -50,23 +51,28 @@ class RhodeCodeAuthPlugin(auth.RhodeCodeAuthPluginBase):
         def_user_perms = User.get_by_username('default').AuthUser.permissions['global']
         return 'hg.register.auto_activate' in def_user_perms
 
-    def auth(self, userobj, username, password, settings):
-        not_rc_auth = (userobj.extern_type) and (userobj.extern_type != "rhodecode")
-        if (not userobj) or (not_rc_auth):
-            return False
+    def auth(self, userobj, username, password, settings, **kwargs):
+        if not userobj:
+            log.debug('userobj was:%s skipping' % (userobj))
+            return None
+        if (userobj.extern_type != self.name()):
+            log.debug("userobj:%s extern mismatch got:`%s` expected:`%s`"
+                      % (userobj, userobj.extern_type, self.name()))
+            return None
 
         user_attrs = {
+            "username": userobj.username,
             "firstname": userobj.firstname,
             "lastname": userobj.lastname,
             "groups": [],
             "email": userobj.email,
             "admin": userobj.admin,
             "active": userobj.active,
+            "active_from_extern": userobj.active,
             "extern_name": ""
         }
 
         log.debug(formatted_json(user_attrs))
-        log.info('Authenticating user using RhodeCode account')
         if userobj.active:
             password_match = auth.RhodeCodeCrypto.hash_check(password, userobj.password)
             if userobj.username == 'default' and userobj.active:
@@ -75,9 +81,9 @@ class RhodeCodeAuthPlugin(auth.RhodeCodeAuthPluginBase):
                 return user_attrs
 
             elif userobj.username == username and password_match:
-                log.info('user %s authenticated correctly' % username)
+                log.info('user %s authenticated correctly' % user_attrs['username'])
                 return user_attrs
             log.error("user %s had a bad password" % username)
         else:
             log.warning('user %s tried auth but is disabled' % username)
-        return False
+        return None

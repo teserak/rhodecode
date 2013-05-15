@@ -47,7 +47,8 @@ from rhodecode.lib.vcs.utils.lazy import LazyProperty
 from rhodecode.lib.vcs.backends.base import EmptyChangeset
 
 from rhodecode.lib.utils2 import str2bool, safe_str, get_changeset_safe, \
-    safe_unicode, remove_suffix, remove_prefix, time_to_datetime, _set_extras
+    safe_unicode, remove_suffix, remove_prefix, time_to_datetime, _set_extras,\
+    aslist
 from rhodecode.lib.compat import json
 from rhodecode.lib.caching_query import FromCache
 
@@ -224,6 +225,12 @@ class RhodeCodeSetting(Base, BaseModel):
                 each.app_settings_value
 
         return settings
+
+    @classmethod
+    def get_auth_plugins(cls, cache=False):
+        auth_plugins = aslist(cls.get_by_name("auth_plugins")\
+                              .app_settings_value, sep=',')
+        return auth_plugins
 
     @classmethod
     def get_auth_settings(cls, cache=False):

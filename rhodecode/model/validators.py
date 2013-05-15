@@ -30,42 +30,6 @@ UnicodeString, OneOf, Int, Number, Regex, Email, Bool, StringBoolean, Set, \
 log = logging.getLogger(__name__)
 
 
-class UniqueList(formencode.FancyValidator):
-    """
-    Unique List !
-    """
-    messages = dict(
-        empty=_('Value cannot be an empty list'),
-        missing_value=_('Value cannot be an empty list'),
-    )
-
-    def _to_python(self, value, state):
-        def make_unique(value):
-            seen = []
-            return [c for c in value if not (c in seen or seen.append(c))]
-
-        if isinstance(value, list):
-            return make_unique(value)
-        elif isinstance(value, set):
-            return make_unique(list(value))
-        elif isinstance(value, tuple):
-            return make_unique(list(value))
-        elif value is None:
-            return []
-        else:
-            return [value]
-
-    def empty_value(self, value):
-        return []
-
-
-class UniqueListFromString(UniqueList):
-    def _to_python(self, value, state):
-        if isinstance(value, basestring):
-            value = aslist(value, ',')
-        return super(UniqueListFromString, self)._to_python(value, state)
-
-
 class StateObj(object):
     """
     this is needed to translate the messages using _() in validators
@@ -88,6 +52,47 @@ def M(self, key, state=None, **kwargs):
         state._ = staticmethod(_)
     #inject validator into state object
     return self.message(key, state, **kwargs)
+
+
+def UniqueList():
+    class _UniqueList(formencode.FancyValidator):
+        """
+        Unique List !
+        """
+        messages = dict(
+            empty=_('Value cannot be an empty list'),
+            missing_value=_('Value cannot be an empty list'),
+        )
+
+        def _to_python(self, value, state):
+            def make_unique(value):
+                seen = []
+                return [c for c in value if not (c in seen or seen.append(c))]
+
+            if isinstance(value, list):
+                return make_unique(value)
+            elif isinstance(value, set):
+                return make_unique(list(value))
+            elif isinstance(value, tuple):
+                return make_unique(list(value))
+            elif value is None:
+                return []
+            else:
+                return [value]
+
+        def empty_value(self, value):
+            return []
+
+    return _UniqueList
+
+
+def UniqueListFromString():
+    class _UniqueListFromString(UniqueList()):
+        def _to_python(self, value, state):
+            if isinstance(value, basestring):
+                value = aslist(value, ',')
+            return super(_UniqueListFromString, self)._to_python(value, state)
+    return _UniqueListFromString
 
 
 def ValidUsername(edit=False, old_data={}):
@@ -284,12 +289,12 @@ def ValidAuth():
         }
 
         def validate_python(self, value, state):
-            from rhodecode.lib.auth import authenticate
+            from rhodecode.lib import auth_modules
 
             password = value['password']
             username = value['username']
 
-            if not authenticate(username, password):
+            if not auth_modules.authenticate(username, password):
                 user = User.get_by_username(username)
                 if user and not user.active:
                     log.warning('user %s is disabled' % username)
@@ -849,12 +854,12 @@ def ValidAuthPlugins():
             return filter(lambda s: s not in [None, ''], value)
 
         def validate_python(self, value, state):
-            from rhodecode.lib import auth
+            from rhodecode.lib import auth_modules
             module_list = value
             unique_names = {}
             try:
                 for module in module_list:
-                    plugin = auth.loadplugin(module)
+                    plugin = auth_modules.loadplugin(module)
                     plugin_name = plugin.name()
                     if plugin_name in unique_names:
                         msg = M(self, 'import_duplicate', state,

@@ -34,15 +34,14 @@ from pylons.i18n.translation import _
 
 from sqlalchemy.exc import DatabaseError
 
-from rhodecode.lib import auth
 from rhodecode.lib import helpers as h
 from rhodecode.lib.compat import json, formatted_json
 from rhodecode.lib.base import BaseController, render
 from rhodecode.lib.auth import LoginRequired, HasPermissionAllDecorator
+from rhodecode.lib import auth_modules
 from rhodecode.model.forms import AuthSettingsForm
 from rhodecode.model.db import RhodeCodeSetting
 from rhodecode.model.meta import Session
-from rhodecode.lib.utils2 import aslist
 
 log = logging.getLogger(__name__)
 
@@ -68,7 +67,7 @@ class AuthSettingsController(BaseController):
         formglobals["auth_plugins_shortnames"] = {}
 
         for module in formglobals["auth_plugins"].split(","):
-            plugin = auth.loadplugin(module)
+            plugin = auth_modules.loadplugin(module)
             pluginName = plugin.name()
             formglobals["auth_plugins_shortnames"][module] = pluginName
             formglobals["plugin_settings"][module] = plugin.plugin_settings()
@@ -101,7 +100,7 @@ class AuthSettingsController(BaseController):
     def auth_settings(self):
         """POST create and store auth settings"""
 
-        current_plugins = aslist(RhodeCodeSetting.get_by_name("auth_plugins").app_settings_value, ",")
+        current_plugins = RhodeCodeSetting.get_auth_plugins()
         _form = AuthSettingsForm(current_plugins)()
         log.debug("POST Result: %s" % formatted_json(dict(request.POST)))
 

@@ -27,12 +27,11 @@ import logging
 import traceback
 import formencode
 
-from rhodecode.lib import auth
+from rhodecode.lib import auth_modules
 from rhodecode.lib.compat import json, formatted_json
 from rhodecode.lib.utils2 import str2bool, safe_unicode, safe_str
 from rhodecode.lib.exceptions import LdapConnectionError, LdapUsernameError, \
     LdapPasswordError, LdapImportError
-from rhodecode.model import validators as v
 from rhodecode.model.db import User
 
 log = logging.getLogger(__name__)
@@ -172,7 +171,7 @@ class AuthLdap(object):
         return (dn, attrs)
 
 
-class RhodeCodeAuthPlugin(auth.RhodeCodeAuthPluginBase):
+class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
     def __init__(self):
         self._logger = logging.getLogger(__name__)
         self._tls_kind_values = ["PLAIN", "LDAPS", "START_TLS"]
@@ -186,102 +185,104 @@ class RhodeCodeAuthPlugin(auth.RhodeCodeAuthPluginBase):
         settings = [
             {
                 "name": "host",
-                "validator": v.UnicodeString(strip=True),
+                "validator": self.validators.UnicodeString(strip=True),
                 "type": "string",
                 "description": "Host of the LDAP Server",
                 "formname": "LDAP Host"
-                },
+            },
             {
                 "name": "port",
-                "validator": v.Number(strip=True),
+                "validator": self.validators.Number(strip=True),
                 "type": "string",
                 "description": "Port that the LDAP server is listening on",
+                "default": 389,
                 "formname": "Port"
-                },
+            },
             {
                 "name": "dn_user",
-                "validator": v.UnicodeString(strip=True),
+                "validator": self.validators.UnicodeString(strip=True),
                 "type": "string",
                 "description": "User to connect to LDAP",
                 "formname": "Account"
-                },
+            },
             {
                 "name": "dn_pass",
-                "validator": v.UnicodeString(strip=True),
+                "validator": self.validators.UnicodeString(strip=True),
                 "type": "password",
                 "description": "Password to connect to LDAP",
                 "formname": "Password"
-                },
+            },
             {
                 "name": "tls_kind",
-                "validator": v.OneOf(self._tls_kind_values),
+                "validator": self.validators.OneOf(self._tls_kind_values),
                 "type": "select",
                 "values": self._tls_kind_values,
                 "description": "TLS Type",
+                "default": 'PLAIN',
                 "formname": "Connection Security"
-                },
+            },
             {
                 "name": "tls_reqcert",
-                "validator": v.OneOf(self._tls_reqcert_values),
+                "validator": self.validators.OneOf(self._tls_reqcert_values),
                 "type": "select",
                 "values": self._tls_reqcert_values,
                 "description": "Require Cert over TLS?",
                 "formname": "Certificate Checks"
-                },
+            },
             {
                 "name": "base_dn",
-                "validator": v.UnicodeString(strip=True),
+                "validator": self.validators.UnicodeString(strip=True),
                 "type": "string",
                 "description": "Base DN to search (e.g., dc=mydomain,dc=com)",
                 "formname": "Base DN"
-                },
+            },
             {
                 "name": "filter",
-                "validator": v.UnicodeString(strip=True),
+                "validator": self.validators.UnicodeString(strip=True),
                 "type": "string",
                 "description": "Filter to narrow results (e.g., ou=Users, etc)",
                 "formname": "LDAP Search Filter"
-                },
+            },
             {
                 "name": "search_scope",
-                "validator": v.OneOf(self._search_scopes),
+                "validator": self.validators.OneOf(self._search_scopes),
                 "type": "select",
                 "values": self._search_scopes,
                 "description": "How deep to search LDAP",
                 "formname": "LDAP Search Scope"
-                },
+            },
             {
                 "name": "attr_login",
                 "validator": (formencode.All(
-                        v.AttrLoginValidator(),
-                        v.UnicodeString(strip=True))
+                                self.validators.AttrLoginValidator(),
+                                self.validators.UnicodeString(strip=True))
                               ),
                 "type": "string",
                 "description": "LDAP Attribute to map to user name",
                 "formname": "Login Attribute"
-                },
+            },
             {
                 "name": "attr_firstname",
-                "validator": v.UnicodeString(strip=True),
+                "validator": self.validators.UnicodeString(strip=True),
                 "type": "string",
                 "description": "LDAP Attribute to map to first name",
                 "formname": "First Name Attribute"
-                },
+            },
             {
                 "name": "attr_lastname",
-                "validator": v.UnicodeString(strip=True),
+                "validator": self.validators.UnicodeString(strip=True),
                 "type": "string",
                 "description": "LDAP Attribute to map to last name",
                 "formname": "Last Name Attribute"
-                },
+            },
             {
                 "name": "attr_email",
-                "validator": v.UnicodeString(strip=True),
+                "validator": self.validators.UnicodeString(strip=True),
                 "type": "string",
                 "description": "LDAP Attribute to map to email address",
                 "formname": "Email Attribute"
-                }
-            ]
+            }
+        ]
         return settings
 
     def use_fake_password(self):
@@ -291,8 +292,17 @@ class RhodeCodeAuthPlugin(auth.RhodeCodeAuthPluginBase):
         def_user_perms = User.get_by_username('default').AuthUser.permissions['global']
         return 'hg.extern_activate.auto' in def_user_perms
 
-    def auth(self, userobj, user, password, settings):
-        log.debug("Authenticating user using ldap")
+    def auth(self, userobj, username, password, settings, **kwargs):
+        """
+        Given a user object (which may be null), username, a plaintext password,
+        and a settings object (containing all the keys needed as listed in settings()),
+        authenticate this user's login attempt.
+
+        Return None on failure. On success, return a dictionary of the form:
+
+            see: RhodeCodeAuthPluginBase.auth_func_attrs
+        This is later validated for correctness
+        """
         kwargs = {
             'server': settings.get('host', ''),
             'base_dn': settings.get('base_dn', ''),
@@ -309,7 +319,7 @@ class RhodeCodeAuthPlugin(auth.RhodeCodeAuthPluginBase):
         log.debug('Checking for ldap authentication')
         try:
             aldap = AuthLdap(**kwargs)
-            (user_dn, ldap_attrs) = aldap.authenticate_ldap(user,
+            (user_dn, ldap_attrs) = aldap.authenticate_ldap(username,
                                                             password)
             log.debug('Got ldap DN response %s' % user_dn)
 
@@ -317,15 +327,17 @@ class RhodeCodeAuthPlugin(auth.RhodeCodeAuthPluginBase):
                                                          .get(k), [''])[0]
 
             user_attrs = {
+                'username': username,
                 'firstname': safe_unicode(get_ldap_attr('attr_firstname')),
                 'lastname': safe_unicode(get_ldap_attr('attr_lastname')),
                 'groups': [],
                 'email': get_ldap_attr('attr_email'),
                 'admin': False,
                 'active': True,
+                "active_from_extern": None,
                 'extern_name': user_dn
-                }
-
+            }
+            log.info('user %s authenticated correctly' % user_attrs['username'])
             return user_attrs
 
         except (LdapUsernameError, LdapPasswordError, LdapImportError):

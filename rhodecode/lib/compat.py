@@ -26,6 +26,7 @@
 
 import os
 import functools
+import importlib
 from rhodecode import __py_version__, is_windows
 
 #==============================================================================

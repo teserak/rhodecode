@@ -13,14 +13,14 @@ from paste.httpheaders import WWW_AUTHENTICATE, AUTHORIZATION
 from pylons import config, tmpl_context as c, request, session, url
 from pylons.controllers import WSGIController
 from pylons.controllers.util import redirect
-from pylons.templating import render_mako as render
+from pylons.templating import render_mako as render  # don't remove this import
 
 from rhodecode import __version__, BACKENDS
 
 from rhodecode.lib.utils2 import str2bool, safe_unicode, AttributeDict,\
     safe_str, safe_int
-from rhodecode.lib.auth import AuthUser, get_container_username, authfunc,\
-    HasPermissionAnyMiddleware, CookieStoreWrapper
+from rhodecode.lib import auth_modules
+from rhodecode.lib.auth import AuthUser, HasPermissionAnyMiddleware, CookieStoreWrapper
 from rhodecode.lib.utils import get_repo_slug
 from rhodecode.model import meta
 
@@ -99,7 +99,7 @@ class BasicAuth(AuthBasicAuthenticator):
         _parts = auth.split(':', 1)
         if len(_parts) == 2:
             username, password = _parts
-            if self.authfunc(environ, username, password):
+            if self.authfunc(username, password, environ):
                 return username
         return self.build_authentication()
 
@@ -113,8 +113,8 @@ class BaseVCSController(object):
         self.config = config
         # base path of repo locations
         self.basepath = self.config['base_path']
-        #authenticate this mercurial request using authfunc
-        self.authenticate = BasicAuth('', authfunc,
+        #authenticate this VCS request using authfunc
+        self.authenticate = BasicAuth('', auth_modules.authenticate,
                                       config.get('auth_ret_code'))
         self.ip_addr = '0.0.0.0'
 
@@ -277,7 +277,7 @@ class BaseController(WSGIController):
         c.backends = BACKENDS.keys()
         c.unread_notifications = NotificationModel()\
                         .get_unread_cnt_for_user(c.rhodecode_user.user_id)
-        self.cut_off_limit = int(config.get('cut_off_limit'))
+        self.cut_off_limit = safe_int(config.get('cut_off_limit'))
 
         self.sa = meta.Session
         self.scm_model = ScmModel(self.sa)
@@ -291,17 +291,22 @@ class BaseController(WSGIController):
             self.ip_addr = _get_ip_addr(environ)
             # make sure that we update permissions each time we call controller
             api_key = request.GET.get('api_key')
-            cookie_store = CookieStoreWrapper(session.get('rhodecode_user'))
-            user_id = cookie_store.get('user_id', None)
-            username = get_container_username(environ, config)
-            auth_user = AuthUser(user_id, api_key, username, self.ip_addr)
+
+            if api_key:
+                auth_user = AuthUser(api_key=api_key, ip_addr=self.ip_addr)
+                authenticated = False
+            else:
+                cookie_store = CookieStoreWrapper(session.get('rhodecode_user'))
+                auth_user = AuthUser(user_id=cookie_store.get('user_id', None),
+                                     ip_addr=self.ip_addr)
+                authenticated = cookie_store.get('is_authenticated')
+
+            if not auth_user.is_authenticated and auth_user.user_id is not None:
+                # user is not authenticated and not empty
+                auth_user.set_authenticated(authenticated)
             request.user = auth_user
+            #set globals for auth user
             self.rhodecode_user = c.rhodecode_user = auth_user
-            if not self.rhodecode_user.is_authenticated and \
-                       self.rhodecode_user.user_id is not None:
-                self.rhodecode_user.set_authenticated(
-                    cookie_store.get('is_authenticated')
-                )
             log.info('IP: %s User: %s accessed %s' % (
                self.ip_addr, auth_user, safe_unicode(_get_access_path(environ)))
             )

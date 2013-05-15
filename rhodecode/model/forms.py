@@ -26,12 +26,9 @@ from formencode import All
 
 from pylons.i18n.translation import _
 
-from rhodecode.model import validators as v
 from rhodecode import BACKENDS
+from rhodecode.model import validators as v
 from rhodecode.model.db import RhodeCodeSetting
-
-import rhodecode.lib.auth
-import json
 
 log = logging.getLogger(__name__)
 
@@ -371,16 +368,17 @@ def AuthSettingsForm(current_active_modules):
         allow_extra_fields = True
         filter_extra_fields = True
         auth_plugins = All(v.ValidAuthPlugins(),
-                           v.UniqueListFromString(not_empty=True))
+                           v.UniqueListFromString()(not_empty=True))
 
         def __init__(self, *args, **kwargs):
             # The auth plugins tell us what form validators they use
             if current_active_modules:
+                import rhodecode.lib.auth_modules
                 for module in current_active_modules:
-                    plugin = rhodecode.lib.auth.loadplugin(module)
-                    pluginName = plugin.name()
+                    plugin = rhodecode.lib.auth_modules.loadplugin(module)
+                    plugin_name = plugin.name()
                     for sv in plugin.plugin_settings():
-                        newk = "auth_%s_%s" % (pluginName, sv["name"])
+                        newk = "auth_%s_%s" % (plugin_name, sv["name"])
                         self.add_field(newk, sv["validator"])
             formencode.Schema.__init__(self, *args, **kwargs)
 
@@ -434,8 +432,8 @@ def PullRequestForm(repo_id):
         other_repo = v.UnicodeString(strip=True, required=True)
         other_ref = v.UnicodeString(strip=True, required=True)
         revisions = All(#v.NotReviewedRevisions(repo_id)(),
-                        v.UniqueList(not_empty=True))
-        review_members = v.UniqueList(not_empty=True)
+                        v.UniqueList()(not_empty=True))
+        review_members = v.UniqueList()(not_empty=True)
 
         pullrequest_title = v.UnicodeString(strip=True, required=True, min=3)
         pullrequest_desc = v.UnicodeString(strip=True, required=False)

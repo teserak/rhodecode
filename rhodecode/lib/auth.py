@@ -27,7 +27,6 @@ import random
 import logging
 import traceback
 import hashlib
-import importlib
 
 from tempfile import _RandomNameSequence
 from decorator import decorator
@@ -38,17 +37,14 @@ from pylons.i18n.translation import _
 from sqlalchemy.orm.exc import ObjectDeletedError
 
 from rhodecode import __platform__, is_windows, is_unix
-from rhodecode.model.meta import Session
-
-from rhodecode.lib.utils2 import str2bool, safe_unicode, aslist
-from rhodecode.lib.utils import get_repo_slug, get_repos_group_slug,\
-    get_user_group_slug
-
 from rhodecode.model import meta
 from rhodecode.model.user import UserModel
-from rhodecode.model.db import Permission, RhodeCodeSetting, User, UserIpMap
+from rhodecode.model.db import Permission, User, UserIpMap
+
+from rhodecode.lib.utils2 import safe_unicode, aslist
+from rhodecode.lib.utils import get_repo_slug, get_repos_group_slug,\
+    get_user_group_slug
 from rhodecode.lib.caching_query import FromCache
-from rhodecode.lib.compat import formatted_json
 
 log = logging.getLogger(__name__)
 
@@ -83,118 +79,6 @@ class PasswordGenerator(object):
             type_ = self.ALPHABETS_FULL
         self.passwd = ''.join([random.choice(type_) for _ in xrange(length)])
         return self.passwd
-
-
-class RhodeCodeAuthPluginBase(object):
-
-    @classmethod
-    def name():
-        """
-        Returns the name of this authentication plugin.
-
-        :returns: string
-        """
-        raise NotImplementedError("Not implemented in base class")
-
-    @classmethod
-    def settings():
-        """
-        Return a list of the form:
-        [
-            {
-                "name": "OPTION_NAME",
-                "type": "[bool|password|string|int|select]",
-                ["values": ["opt1", "opt2", ...]]
-                "validator": "expr"
-                "description": "A short description of the option" [,
-                "default": Default Value],
-                ["formname": "Friendly Name for Forms"]
-            } [, ...]
-        ]
-
-        This is used to interrogate the authentication plugin as to what
-        settings it expects to be present and configured.
-
-        'type' is a shorthand notation for what kind of value this option is.
-        This is primarily used by the auth web form to control how the option
-        is configured.
-                bool : checkbox
-                password : password input box
-                string : input box
-                select : single select dropdown
-
-        'validator' is an instantiated form field validator object, ala
-        formencode. Feel free to use the rhodecode validators here as well.
-        """
-        raise NotImplementedError("Not implemented in base class")
-
-    def plugin_settings(self):
-        """
-        This method is called by the authentication framework, not the .settings()
-        method. This method adds a few default settings (e.g., "active"), so that
-        plugin authors don't have to maintain a bunch of boilerplate.
-
-        OVERRIDING THIS METHOD WILL CAUSE YOUR PLUGIN TO FAIL.
-        """
-
-        # FIXME : This is here because it will create a circular dependency if I put
-        # it at the toplevel, between this and the validators module. This
-        # RhodeCodeAuthPlugin class should be in a different place, I'm guessing.
-        from rhodecode.model import validators as v
-
-        rcsettings = self.settings()
-        rcsettings.insert(0,
-            {
-                "name": "enabled",
-                "validator": v.StringBoolean(if_missing=False),
-                "type": "bool",
-                "description": "Enable or Disable this Authentication Plugin",
-                "formname": "Enabled"
-            }
-        )
-        return rcsettings
-
-    @classmethod
-    def use_fake_password():
-        """
-        Return a boolean that indicates whether or not we should set the user's
-        password to a random value when it is authenticated by this plugin.
-        If your plugin provides authentication, then you will generally want this.
-
-        :returns: boolean
-        """
-        raise NotImplementedError("Not implemented in base class")
-
-    @classmethod
-    def user_activation_state():
-        """
-        Defines user activation state when creating new users
-
-        :returns: boolean
-        """
-        raise NotImplementedError("Not implemented in base class")
-
-    @classmethod
-    def auth(userobj, user, passwd, settings):
-        """
-        Given a user object (which may be null), user name, a plaintext password,
-        and a settings object (containing all the keys needed as listed in settings()),
-        authenticate this user's login attempt.
-
-        Return None on failure. On success, return a dictionary of the form:
-
-        {
-            "name": "short user name",
-            "firstname": "first name",
-            "lastname": "last name",
-            "email": "email address",
-            "groups": ["list", "of", "groups"],
-            "extern_name": "name in external source of record",
-            "admin": True|False,
-            "active": True|False
-        }
-        """
-        raise NotImplementedError("not implemented in base class")
 
 
 class RhodeCodeCrypto(object):
@@ -260,184 +144,6 @@ def generate_api_key(str_, salt=None):
     return hashlib.sha1(str_ + salt).hexdigest()
 
 
-def authfunc(environ, username, password):
-    """
-    Dummy authentication wrapper function used in Mercurial and Git for
-    access control.
-
-    :param environ: needed only for using in Basic auth
-    """
-    return authenticate(username, password)
-
-
-def loadplugin(plugin):
-    """
-    Load and return the authentication plugin in the module named by plugin
-    (e.g., plugin='rhodecode.lib.auth_modules.auth_rhodecode'). Returns an
-    instantiated RhodeCodeAuthPluginBase subclass on success, raises exceptions
-    on failure.
-
-    raises:
-        AttributeError -- no RhodeCodeAuthPlugin class in the module
-        TypeError -- if the RhodeCodeAuthPlugin is not a subclass of ours RhodeCodeAuthPluginBase
-        ImportError -- if we couldn't import the plugin at all
-    """
-    log.debug("Importing %s" % plugin)
-    PLUGIN_CLASS_NAME = "RhodeCodeAuthPlugin"
-
-    module = importlib.import_module(plugin)
-    log.debug("Loaded auth plugin from %s (%s in %s)"
-              % (plugin, module.__name__, module.__file__))
-
-    pluginclass = getattr(module, PLUGIN_CLASS_NAME)
-    if not issubclass(pluginclass, RhodeCodeAuthPluginBase):
-        raise TypeError("Authentication class %s.RhodeCodeAuthPlugin is not "
-                        "a subclass of %s" % (plugin, RhodeCodeAuthPluginBase))
-    plugin = pluginclass()
-    if (plugin.plugin_settings.im_func != RhodeCodeAuthPluginBase.plugin_settings.im_func):
-        raise TypeError("Authentication class %s.RhodeCodeAuthPluginBase "
-                        "has overriden the plugin_settings method, which is "
-                        "forbidden." % plugin)
-    return plugin
-
-
-def authenticate(username, password):
-    """
-    Authentication function used for access control,
-    It tries to authenticate based on enabled authentication modules.
-
-    :param username: username
-    :param password: password
-    """
-
-    user_model = UserModel()
-    user = User.get_by_username(username)
-    if not user:
-        user = User.get_by_username(username, case_insensitive=True)
-
-    auth_plugins = aslist(RhodeCodeSetting.get_by_name("auth_plugins").app_settings_value, sep=',')
-    for module in auth_plugins:
-        try:
-            plugin = loadplugin(module)
-        except (ImportError, AttributeError, TypeError), e:
-            raise ImportError('Failed to load authentication module %s : %s'
-                              % (module, str(e)))
-        pluginName = plugin.name()
-        if (user) and (user.extern_type) and (user.extern_type != pluginName):
-            continue
-
-        pluginConfigSettings = plugin.plugin_settings()
-        pluginSettings = {}
-        for v in pluginConfigSettings:
-            conf_key = "auth_%s_%s" % (pluginName, v["name"])
-            setting = RhodeCodeSetting.get_by_name(conf_key)
-            pluginSettings[v["name"]] = setting.app_settings_value if setting else None
-        log.debug(formatted_json(pluginSettings))
-        if pluginSettings["enabled"] == "False":
-            log.info("Authentication plugin %s is disabled, skipping for %s"
-                     % (module, username))
-            continue
-        pluginUser = plugin.auth(user, username, password, pluginSettings)
-        if pluginUser:
-            if plugin.use_fake_password():
-                # Randomize the PW because we don't need it, but don't want
-                # them blank either
-                password = PasswordGenerator().gen_password(length=8)
-
-            if (not 'active' in pluginUser):
-                pluginUser['active'] = plugin.user_activation_state()
-
-            if not pluginUser['active']:
-                log.warning("User %s authenticated against %s, but is inactive"
-                            % (username, pluginName))
-                return False
-
-            # create user mapped from auth plugin
-            user_model.create_or_update(
-                username=username,
-                password=password,
-                email=pluginUser["email"],
-                firstname=pluginUser["firstname"],
-                lastname=pluginUser["lastname"],
-                active=pluginUser["active"],
-                admin=pluginUser["admin"],
-                extern_name=pluginUser["extern_name"],
-                extern_type=pluginName
-            )
-            Session().commit()
-            return True
-        else:
-            log.warning("User %s failed to authenticate against %s"
-                        % (username, pluginName))
-    return False
-
-
-def login_container_auth(username):
-    """
-    Login container auth used for remote Logins using proxy-pass and container
-    auth
-
-    :param username:
-    """
-    user = User.get_by_username(username)
-    if user is None:
-        user_attrs = {
-            'name': username,
-            'lastname': None,
-            'email': None,
-            'active': 'hg.extern_activate.auto' in User.get_default_user()\
-                                            .AuthUser.permissions['global'],
-            'extern_name': username,
-            'extern_type': 'container'
-        }
-        user = UserModel().create_for_container_auth(username, user_attrs)
-        if not user:
-            return None
-        log.info('User %s was created by container authentication' % username)
-
-    if not user.active:
-        return None
-
-    user.update_lastlogin()
-    Session().commit()
-
-    log.debug('User %s is now logged in by container authentication',
-              user.username)
-    return user
-
-
-def get_container_username(environ, config, clean_username=False):
-    """
-    Get's the container_auth username (or email). It tries to get username
-    from REMOTE_USER if container_auth_enabled is enabled, if that fails
-    it tries to get username from HTTP_X_FORWARDED_USER if proxypass_auth_enabled
-    is enabled. clean_username extracts the username from this data if it's
-    having @ in it.
-
-    :param environ:
-    :param config:
-    :param clean_username:
-    """
-    username = None
-
-    if str2bool(config.get('container_auth_enabled', False)):
-        from paste.httpheaders import REMOTE_USER
-        username = REMOTE_USER(environ)
-        log.debug('extracted REMOTE_USER:%s' % (username))
-
-    if not username and str2bool(config.get('proxypass_auth_enabled', False)):
-        username = environ.get('HTTP_X_FORWARDED_USER')
-        log.debug('extracted HTTP_X_FORWARDED_USER:%s' % (username))
-
-    if username and clean_username:
-        # Removing realm and domain from username
-        username = username.partition('@')[0]
-        username = username.rpartition('\\')[2]
-    log.debug('Received username %s from container' % username)
-
-    return username
-
-
 class CookieStoreWrapper(object):
 
     def __init__(self, cookie_store):
@@ -496,17 +202,9 @@ class  AuthUser(object):
             log.debug('Auth User lookup by USER ID %s' % self.user_id)
             is_user_loaded = user_model.fill_data(self, user_id=self.user_id)
         # lookup by username
-        elif self.username and \
-            str2bool(config.get('container_auth_enabled', False)):
-
+        elif self.username:
             log.debug('Auth User lookup by USER NAME %s' % self.username)
-            dbuser = login_container_auth(self.username)
-            if dbuser is not None:
-                log.debug('filling all attributes to object')
-                for k, v in dbuser.get_dict().items():
-                    setattr(self, k, v)
-                self.set_authenticated()
-                is_user_loaded = True
+            is_user_loaded = user_model.fill_data(self, username=self.username)
         else:
             log.debug('No data in %s that could been used to log in' % self)
 
@@ -660,37 +358,43 @@ class LoginRequired(object):
         cls = fargs[0]
         user = cls.rhodecode_user
         loc = "%s:%s" % (cls.__class__.__name__, func.__name__)
-        # defined whitelist of controllers which API access will be enabled
-        whitelist = aslist(config.get('api_access_controllers_whitelist'), sep=',')
-        api_access_whitelist = loc in whitelist
-        log.debug('loc:%s is in API whitelist:%s:%s' % (loc, whitelist,
-                                                        api_access_whitelist))
-        #check IP
-        ip_access_ok = True
+
+        # check if our IP is allowed
+        ip_access_valid = True
         if not user.ip_allowed:
             from rhodecode.lib import helpers as h
             h.flash(h.literal(_('IP %s not allowed' % (user.ip_addr))),
                     category='warning')
-            ip_access_ok = False
+            ip_access_valid = False
 
-        api_access_ok = False
-        if self.api_access or api_access_whitelist:
+        # check if we used an APIKEY and it's a valid one
+        # defined whitelist of controllers which API access will be enabled
+        whitelist = aslist(config.get('api_access_controllers_whitelist'), sep=',')
+        api_access_valid = loc in whitelist
+        log.debug('loc:%s is in API whitelist:%s:%s' % (loc, whitelist,
+                                                        api_access_valid))
+
+        # explicit controller is enabled or API is in our whitelist
+        if self.api_access or api_access_valid:
             log.debug('Checking API KEY access for %s' % cls)
             if user.api_key == request.GET.get('api_key'):
-                api_access_ok = True
+                api_access_valid = True
             else:
+                api_access_valid = False
                 log.debug("API KEY token not valid")
 
         log.debug('Checking if %s is authenticated @ %s' % (user.username, loc))
-        if (user.is_authenticated or api_access_ok) and ip_access_ok:
-            reason = 'RegularAuth' if user.is_authenticated else 'APIAuth'
-            log.info('user %s is authenticated and granted access to %s '
-                     'using %s' % (user.username, loc, reason)
+        reason = 'RegularAuth' if user.is_authenticated else 'APIAuth'
+
+        if ip_access_valid and (user.is_authenticated or api_access_valid):
+            log.info('user %s authenticating with:%s IS authenticated on func %s '
+                     % (user, reason, loc)
             )
             return func(*fargs, **fkwargs)
         else:
-            log.warn('user %s NOT authenticated on func: %s' % (
-                user, loc)
+            log.warn('user %s authenticating with:%s NOT authenticated on func: %s: '
+                     'IP_ACCESS:%s API_ACCESS:%s'
+                     % (user, reason, loc, ip_access_valid, api_access_valid)
             )
             p = url.current()
 
