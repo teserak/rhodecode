@@ -46,7 +46,7 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
                 "name": "header",
                 "validator": self.validators.UnicodeString(strip=True),
                 "type": "string",
-                "description": "header to extract the user from",
+                "description": "Header to extract the user from",
                 "default": "REMOTE_USER",
                 "formname": "Header"
             },
@@ -54,7 +54,7 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
                 "name": "fallback_header",
                 "validator": self.validators.UnicodeString(strip=True),
                 "type": "string",
-                "description": "header to extract the user from when main one fails",
+                "description": "Header to extract the user from when main one fails",
                 "default": "HTTP_X_FORWARDED_USER",
                 "formname": "Fallback header"
             },
@@ -62,8 +62,9 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
                 "name": "clean_username",
                 "validator": self.validators.UnicodeString(strip=True),
                 "type": "bool",
-                "description": "perform cleaning of user, takes first part of "
-                               "email if there's a @ sign, also \\ two",
+                "description": "Perform cleaning of user, if passed user has @ in username"
+                               "then first part before @ is taken. "
+                               "If there's \\\\ in the username only the part after \\\\ is taken",
                 "default": "True",
                 "formname": "Clean username"
             },
