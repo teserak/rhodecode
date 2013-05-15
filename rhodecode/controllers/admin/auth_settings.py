@@ -51,8 +51,6 @@ class AuthSettingsController(BaseController):
     @LoginRequired()
     @HasPermissionAllDecorator('hg.admin')
     def __before__(self):
-        c.admin_user = session.get('admin_user')
-        c.admin_username = session.get('admin_username')
         super(AuthSettingsController, self).__before__()
 
     def index(self, defaults=None, errors=None, prefix_error=False):
