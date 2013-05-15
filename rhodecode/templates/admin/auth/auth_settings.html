@@ -29,7 +29,20 @@
     <div class="fields">
        <div class="field">
            <div class="label"><label for="auth_plugins">${_("Authentication Plugins")}</label></div>
-           <div class="input">${h.text("auth_plugins", class_='large')}</div>
+           <div class="input">${h.text("auth_plugins", class_='large')}
+           <span class="help-block">${_('Comma separated list of plugins. Order of plugins is also order in which RhodeCode will try to authenticate user')}</span>
+               <div style="padding:10px 0px 10px 0px;font-weight: bold">${_('Available built-in plugins')}</div>
+		       <ul>
+		       %for plugin_path in c.available_plugins:
+		            <li>
+		              <div style="padding:3px 0px 3px 0px">
+		                  <span class="ui-btn xsmall ${'green' if plugin_path in c.enabled_plugins else ''}">
+		                  ${'enabled' if plugin_path in c.enabled_plugins else 'disabled'}</span>${plugin_path}
+		              </div>
+		            </li>
+		       %endfor
+		       </ul>           
+           </div>
        </div>
     </div>
 

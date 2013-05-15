@@ -53,7 +53,17 @@ class AuthSettingsController(BaseController):
     def __before__(self):
         super(AuthSettingsController, self).__before__()
 
+    def __load_defaults(self):
+        c.available_plugins = [
+            'rhodecode.lib.auth_modules.auth_rhodecode',
+            'rhodecode.lib.auth_modules.auth_container',
+            'rhodecode.lib.auth_modules.auth_ldap',
+            'rhodecode.lib.auth_modules.auth_crowd',
+        ]
+        c.enabled_plugins = RhodeCodeSetting.get_auth_plugins()
+
     def index(self, defaults=None, errors=None, prefix_error=False):
+        self.__load_defaults()
         _defaults = {}
         # default plugins loaded
         formglobals = {
@@ -97,9 +107,8 @@ class AuthSettingsController(BaseController):
 
     def auth_settings(self):
         """POST create and store auth settings"""
-
-        current_plugins = RhodeCodeSetting.get_auth_plugins()
-        _form = AuthSettingsForm(current_plugins)()
+        self.__load_defaults()
+        _form = AuthSettingsForm(c.enabled_plugins)()
         log.debug("POST Result: %s" % formatted_json(dict(request.POST)))
 
         try:
