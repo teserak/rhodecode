@@ -56,7 +56,7 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
             log.debug('userobj was:%s skipping' % (userobj))
             return None
         if (userobj.extern_type != self.name()):
-            log.debug("userobj:%s extern mismatch got:`%s` expected:`%s`"
+            log.warn("userobj:%s extern_type mismatch got:`%s` expected:`%s`"
                       % (userobj, userobj.extern_type, self.name()))
             return None
 
