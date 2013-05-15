@@ -34,7 +34,8 @@
                 <strong>${_('Change your avatar at')} <a href="http://gravatar.com">gravatar.com</a></strong>
                 <br/>${_('Using')} ${c.user.email}
                 %else:
-                <br/>${c.user.email}
+                <strong>${_('Avatars are disabled')}</strong>
+                <br/>${c.user.email or _('Missing email, please update this user email address.')}
                 %endif
            </div>
         </div>
@@ -51,16 +52,15 @@
             </div>
         </div>
         %endif
+        <% readonly = None %>
+        <% disabled = "" %>
         <div class="fields">
              <div class="field">
            %if c.extern_name:
                <% readonly = "readonly" %>
-           <% disabled = " disabled" %>
-               <strong>This user is in an external Source of Record; some details cannot be managed here.</strong>
-           %else:
-           <% readonly = None %>
-           <% disabled = "" %>
-           %endif:
+               <% disabled = " disabled" %>
+               <strong>${_('This user is in an external Source of Record; some details cannot be managed here.')}.</strong>
+           %endif
          </div>
              <div class="field">
                 <div class="label">
@@ -71,7 +71,7 @@
                 </div>
              </div>
 
-             %if c.extern_name:
+             %if c.extern_name or c.extern_type:
              <div class="field">
                 <div class="label">
                     <label for="extern_type">${_('Source of Record')}:</label>
@@ -91,7 +91,6 @@
              </div>
              %endif:
 
-             %if not c.extern_name:
              <div class="field">
                 <div class="label">
                     <label for="new_password">${_('New password')}:</label>
@@ -109,7 +108,6 @@
                     ${h.password('password_confirmation',class_="medium%s" % disabled,autocomplete="off",readonly=readonly)}
                 </div>
              </div>
-             %endif:
 
              <div class="field">
                 <div class="label">
@@ -134,7 +132,7 @@
                     <label for="email">${_('Email')}:</label>
                 </div>
                 <div class="input">
-                    ${h.text('email',class_='medium%s' % disabled, readonly=readonly)}
+                    ${h.text('email',class_='medium')}
                 </div>
              </div>
 
@@ -151,13 +149,13 @@
                 <div class="label label-checkbox">
                     <label for="admin">${_('Admin')}:</label>
                 </div>
-           %if c.user.extern_name:
-        <strong>${c.user.admin}</strong>
-               %else:
+              %if c.user.extern_name:
+                 <strong>${c.user.admin}</strong>
+              %else:
                 <div class="checkboxes">
                     ${h.checkbox('admin',value=True)}
                 </div>
-               %endif:
+              %endif:
              </div>
             <div class="buttons">
               ${h.submit('save',_('Save'),class_="ui-btn large")}

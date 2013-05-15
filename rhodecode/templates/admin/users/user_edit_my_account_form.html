@@ -3,17 +3,17 @@
         <div class="form">
 
              <div class="field">
-                <div class="gravatar_box">
-                    <div class="gravatar"><img alt="gravatar" src="${h.gravatar_url(c.user.email)}"/></div>
-                    <p>
-                    %if c.use_gravatar:
-                    <strong>${_('Change your avatar at')} <a href="http://gravatar.com">gravatar.com</a></strong>
-                    <br/>${_('Using')} ${c.user.email}
-                    %else:
-                    <br/>${c.user.email}
-                    %endif
-                    </p>
-                </div>
+	           <div class="gravatar_box">
+	               <div class="gravatar"><img alt="gravatar" src="${h.gravatar_url(c.user.email)}"/></div>
+	                <p>
+	                %if c.use_gravatar:
+	                <strong>${_('Change your avatar at')} <a href="http://gravatar.com">gravatar.com</a></strong>
+	                <br/>${_('Using')} ${c.user.email}
+	                %else:
+	                <strong>${_('Avatars are disabled')}</strong>
+	                <br/>${c.user.email or _('Missing email, please update your user email address.')}
+	                %endif
+	           </div>
              </div>
             <div class="field">
                 <div class="label">
@@ -25,15 +25,14 @@
                     <label>${_('Current IP')}:</label> ${c.perm_user.ip_addr or "?"}
                 </div>
             </div>
+	        <% readonly = None %>
+	        <% disabled = "" %>            
             <div class="fields">
-           %if c.extern_name:
-               <% readonly = "readonly" %>
-           <% disabled = " disabled" %>
-               <strong>Your user is in an external Source of Record; some details cannot be managed here.</strong>
-           %else:
-           <% readonly = None %>
-           <% disabled = "" %>
-           %endif:
+	           %if c.extern_name:
+	                <% readonly = "readonly" %>
+	                <% disabled = " disabled" %>
+	                <strong>${_('Your user is in an external Source of Record; some details cannot be managed here')}.</strong>
+	           %endif
                  <div class="field">
                     <div class="label">
                         <label for="username">${_('Username')}:</label>
@@ -43,13 +42,12 @@
                     </div>
                  </div>
 
-                 %if not c.extern_name:
                  <div class="field">
                     <div class="label">
                         <label for="new_password">${_('New password')}:</label>
                     </div>
                     <div class="input">
-                        ${h.password('new_password',class_="medium",autocomplete="off")}
+                        ${h.password('new_password',class_='medium%s' % disabled,autocomplete="off", readonly=readonly)}
                     </div>
                  </div>
 
@@ -58,10 +56,9 @@
                         <label for="password_confirmation">${_('New password confirmation')}:</label>
                     </div>
                     <div class="input">
-                        ${h.password('password_confirmation',class_="medium",autocomplete="off")}
+                        ${h.password('password_confirmation',class_='medium%s' % disabled,autocomplete="off", readonly=readonly)}
                     </div>
                  </div>
-                 %endif:
 
                  <div class="field">
                     <div class="label">
@@ -86,7 +83,8 @@
                         <label for="email">${_('Email')}:</label>
                     </div>
                     <div class="input">
-                        ${h.text('email',class_="medium%s" % disabled,readonly=readonly)}
+                        ## we should be able to edit email !
+                        ${h.text('email',class_="medium")}
                     </div>
                  </div>
 
