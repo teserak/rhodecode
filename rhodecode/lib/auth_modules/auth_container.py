@@ -60,7 +60,7 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
             },
             {
                 "name": "clean_username",
-                "validator": self.validators.UnicodeString(strip=True),
+                "validator": self.validators.StringBoolean(if_missing=False),
                 "type": "bool",
                 "description": "Perform cleaning of user, if passed user has @ in username"
                                "then first part before @ is taken. "
