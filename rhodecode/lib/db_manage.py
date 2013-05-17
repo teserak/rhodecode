@@ -510,28 +510,28 @@ class DbManage(object):
         :param skip_existing:
         """
 
-        for k, v in [('auth_plugins', 'rhodecode.lib.auth_modules.auth_rhodecode'),
-                     ('auth_rhodecode_enabled', 'True')]:
+        for k, v, t in [('auth_plugins', 'rhodecode.lib.auth_modules.auth_rhodecode', 'list'),
+                     ('auth_rhodecode_enabled', 'True', 'bool')]:
             if skip_existing and RhodeCodeSetting.get_by_name(k) != None:
                 log.debug('Skipping option %s' % k)
                 continue
-            setting = RhodeCodeSetting(k, v)
+            setting = RhodeCodeSetting(k, v, t)
             self.sa.add(setting)
 
     def create_default_options(self, skip_existing=False):
         """Creates default settings"""
 
-        for k, v in [
-            ('default_repo_enable_locking',  False),
-            ('default_repo_enable_downloads', False),
-            ('default_repo_enable_statistics', False),
-            ('default_repo_private', False),
-            ('default_repo_type', 'hg')]:
+        for k, v, t in [
+            ('default_repo_enable_locking',  False, 'bool'),
+            ('default_repo_enable_downloads', False, 'bool'),
+            ('default_repo_enable_statistics', False, 'bool'),
+            ('default_repo_private', False, 'bool'),
+            ('default_repo_type', 'hg', 'unicode')]:
 
             if skip_existing and RhodeCodeSetting.get_by_name(k) != None:
                 log.debug('Skipping option %s' % k)
                 continue
-            setting = RhodeCodeSetting(k, v)
+            setting = RhodeCodeSetting(k, v, t)
             self.sa.add(setting)
 
     def fixup_groups(self):
@@ -660,9 +660,9 @@ class DbManage(object):
         sett2 = RhodeCodeSetting('title', 'RhodeCode')
         sett3 = RhodeCodeSetting('ga_code', '')
 
-        sett4 = RhodeCodeSetting('show_public_icon', True)
-        sett5 = RhodeCodeSetting('show_private_icon', True)
-        sett6 = RhodeCodeSetting('stylify_metatags', False)
+        sett4 = RhodeCodeSetting('show_public_icon', True, 'bool')
+        sett5 = RhodeCodeSetting('show_private_icon', True, 'bool')
+        sett6 = RhodeCodeSetting('stylify_metatags', False, 'bool')
 
         self.sa.add(web1)
         self.sa.add(web2)

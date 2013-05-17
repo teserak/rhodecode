@@ -67,28 +67,30 @@ class AuthSettingsController(BaseController):
         _defaults = {}
         # default plugins loaded
         formglobals = {
-            "auth_plugins": "rhodecode.lib.auth_modules.auth_rhodecode"
+            "auth_plugins": ["rhodecode.lib.auth_modules.auth_rhodecode"]
         }
         formglobals.update(RhodeCodeSetting.get_auth_settings())
-        _defaults["auth_plugins"] = formglobals["auth_plugins"]
         formglobals["plugin_settings"] = {}
         formglobals["auth_plugins_shortnames"] = {}
+        _defaults["auth_plugins"] = formglobals["auth_plugins"]
 
-        for module in formglobals["auth_plugins"].split(","):
+        for module in formglobals["auth_plugins"]:
             plugin = auth_modules.loadplugin(module)
-            pluginName = plugin.name()
-            formglobals["auth_plugins_shortnames"][module] = pluginName
+            plugin_name = plugin.name()
+            formglobals["auth_plugins_shortnames"][module] = plugin_name
             formglobals["plugin_settings"][module] = plugin.plugin_settings()
             for v in formglobals["plugin_settings"][module]:
-                fullname = ("auth_" + pluginName + "_" + v["name"])
+                fullname = ("auth_" + plugin_name + "_" + v["name"])
                 if "default" in v:
                     _defaults[fullname] = v["default"]
                 # Current values will be the default on the form, if there are any
                 setting = RhodeCodeSetting.get_by_name(fullname)
                 if setting:
                     _defaults[fullname] = setting.app_settings_value
+        # we want to show , seperated list of enabled plugins
+        _defaults['auth_plugins'] = ','.join(_defaults['auth_plugins'])
         if defaults:
-            _defaults.update()
+            _defaults.update(defaults)
 
         formglobals["defaults"] = _defaults
         # set template context variables
@@ -98,12 +100,13 @@ class AuthSettingsController(BaseController):
         log.debug(pprint.pformat(formglobals, indent=4))
         log.debug(formatted_json(defaults))
         return formencode.htmlfill.render(
-                    render('admin/auth/auth_settings.html'),
-                    defaults=_defaults,
-                    errors=errors,
-                    prefix_error=prefix_error,
-                    encoding="UTF-8",
-                    force_defaults=True,)
+            render('admin/auth/auth_settings.html'),
+            defaults=_defaults,
+            errors=errors,
+            prefix_error=prefix_error,
+            encoding="UTF-8",
+            force_defaults=True,
+        )
 
     def auth_settings(self):
         """POST create and store auth settings"""
@@ -118,8 +121,7 @@ class AuthSettingsController(BaseController):
                     # we want to store it comma separated inside our settings
                     v = ','.join(v)
                 log.debug("%s = %s" % (k, str(v)))
-                setting = RhodeCodeSetting.get_by_name_or_create(k)
-                setting.app_settings_value = v
+                setting = RhodeCodeSetting.get_by_name_or_create(k, v)
                 Session().add(setting)
             Session().commit()
             h.flash(_('Auth settings updated successfully'),

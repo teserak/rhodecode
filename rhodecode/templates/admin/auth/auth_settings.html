@@ -28,7 +28,7 @@
     <h1>${_('Authentication Plugins')}</h1>
     <div class="fields">
        <div class="field">
-           <div class="label"><label for="auth_plugins">${_("Authentication Plugins")}</label></div>
+           <div class="label"><label for="auth_plugins">${_("Enabled Plugins")}</label></div>
            <div class="input">${h.text("auth_plugins", class_='large')}
            <span class="help-block">${_('Comma separated list of plugins. Order of plugins is also order in which RhodeCode will try to authenticate user')}</span>
                <div style="padding:10px 0px 10px 0px;font-weight: bold">${_('Available built-in plugins')}</div>
@@ -46,7 +46,7 @@
        </div>
     </div>
 
-    %for cnt, module in enumerate(c.auth_plugins.split(',')):
+    %for cnt, module in enumerate(c.auth_plugins):
         <% pluginName = c.auth_plugins_shortnames[module] %>
         <h1>${_('Plugin')}: ${pluginName}</h1>
         <div class="fields">
@@ -94,7 +94,7 @@
             </div>
             %endif
         %endfor
-        %if cnt == len(c.auth_plugins.split(','))-1:
+        %if cnt == len(c.auth_plugins)-1:
             <div class="buttons">
               ${h.submit('save',_('Save'),class_="ui-button")}
             </div>

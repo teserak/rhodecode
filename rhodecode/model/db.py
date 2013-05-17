@@ -30,6 +30,7 @@ import datetime
 import traceback
 import hashlib
 import collections
+import functools
 
 from sqlalchemy import *
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -152,6 +153,12 @@ class BaseModel(object):
 
 
 class RhodeCodeSetting(Base, BaseModel):
+    SETTINGS_TYPES = {
+        'str': safe_str,
+        'unicode': safe_unicode,
+        'bool': str2bool,
+        'list': functools.partial(aslist, sep=',')
+    }
     __tablename__ = 'rhodecode_settings'
     __table_args__ = (
         UniqueConstraint('app_settings_name'),
@@ -161,10 +168,12 @@ class RhodeCodeSetting(Base, BaseModel):
     app_settings_id = Column("app_settings_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
     app_settings_name = Column("app_settings_name", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
     _app_settings_value = Column("app_settings_value", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
+    _app_settings_type = Column("app_settings_type", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
 
-    def __init__(self, k='', v=''):
-        self.app_settings_name = k
-        self.app_settings_value = v
+    def __init__(self, key='', val='', type='unicode'):
+        self.app_settings_name = key
+        self.app_settings_value = val
+        self.app_settings_type = type
 
     @validates('_app_settings_value')
     def validate_settings_value(self, key, val):
@@ -174,13 +183,9 @@ class RhodeCodeSetting(Base, BaseModel):
     @hybrid_property
     def app_settings_value(self):
         v = self._app_settings_value
-        if self.app_settings_name in ["ldap_active",
-                                      "default_repo_enable_statistics",
-                                      "default_repo_enable_locking",
-                                      "default_repo_private",
-                                      "default_repo_enable_downloads"]:
-            v = str2bool(v)
-        return v
+        _type = self.app_settings_type
+        converter = self.SETTINGS_TYPES.get(_type) or self.SETTINGS_TYPES['unicode']
+        return converter(v)
 
     @app_settings_value.setter
     def app_settings_value(self, val):
@@ -191,10 +196,21 @@ class RhodeCodeSetting(Base, BaseModel):
         """
         self._app_settings_value = safe_unicode(val)
 
+    @hybrid_property
+    def app_settings_type(self):
+        return self._app_settings_type
+
+    @app_settings_type.setter
+    def app_settings_type(self, val):
+        if val not in self.SETTINGS_TYPES:
+            raise Exception('type must be one of %s got %s'
+                            % (self.SETTINGS_TYPES.keys(), val))
+        self._app_settings_type = val
+
     def __unicode__(self):
-        return u"<%s('%s:%s')>" % (
+        return u"<%s('%s:%s[%s]')>" % (
             self.__class__.__name__,
-            self.app_settings_name, self.app_settings_value
+            self.app_settings_name, self.app_settings_value, self.app_settings_type
         )
 
     @classmethod
@@ -203,10 +219,10 @@ class RhodeCodeSetting(Base, BaseModel):
             .filter(cls.app_settings_name == key).scalar()
 
     @classmethod
-    def get_by_name_or_create(cls, key):
+    def get_by_name_or_create(cls, key, val='', type='unicode'):
         res = cls.get_by_name(key)
         if not res:
-            res = cls(key)
+            res = cls(key, val, type)
         return res
 
     @classmethod
@@ -228,8 +244,7 @@ class RhodeCodeSetting(Base, BaseModel):
 
     @classmethod
     def get_auth_plugins(cls, cache=False):
-        auth_plugins = aslist(cls.get_by_name("auth_plugins")\
-                              .app_settings_value, sep=',')
+        auth_plugins = cls.get_by_name("auth_plugins").app_settings_value
         return auth_plugins
 
     @classmethod

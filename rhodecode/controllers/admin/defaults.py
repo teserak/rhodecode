@@ -89,8 +89,7 @@ class DefaultsController(BaseController):
         try:
             form_result = _form.to_python(dict(request.POST))
             for k, v in form_result.iteritems():
-                setting = RhodeCodeSetting.get_by_name_or_create(k)
-                setting.app_settings_value = v
+                setting = RhodeCodeSetting.get_by_name_or_create(k, v)
                 Session().add(setting)
             Session().commit()
             h.flash(_('Default settings updated successfully'),
