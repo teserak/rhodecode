@@ -14,10 +14,10 @@ class TestAuthSettingsController(TestController):
         self.log_user()
         if ldap_lib_installed:
             raise SkipTest('skipping due to missing ldap lib')
- 
+
         test_url = url(controller='admin/auth_settings',
                        action='auth_settings')
- 
+
         response = self.app.post(url=test_url,
             params={'ldap_host': u'dc.example.com',
                     'ldap_port': '999',
@@ -32,22 +32,22 @@ class TestAuthSettingsController(TestController):
                     'ldap_attr_firstname': 'ima',
                     'ldap_attr_lastname': 'tester',
                     'ldap_attr_email': 'test@example.com' })
- 
+
         new_settings = RhodeCodeSetting.get_auth_settings()
         self.assertEqual(new_settings['ldap_host'], u'dc.example.com',
                          'fail db write compare')
- 
+
         self.checkSessionFlash(response,
                                'LDAP settings updated successfully')
- 
+
     def test_ldap_error_form_wrong_port_number(self):
         self.log_user()
         if ldap_lib_installed:
             raise SkipTest('skipping due to missing ldap lib')
- 
+
         test_url = url(controller='admin/auth_settings',
                        action='auth_settings')
- 
+
         response = self.app.post(url=test_url,
             params={'ldap_host': '',
                     'ldap_port': 'i-should-be-number',  # bad port num
@@ -62,18 +62,18 @@ class TestAuthSettingsController(TestController):
                     'ldap_attr_firstname': '',
                     'ldap_attr_lastname': '',
                     'ldap_attr_email': ''})
- 
+
         response.mustcontain("""<span class="error-message">"""
                              """Please enter a number</span><br />""")
- 
+
     def test_ldap_error_form(self):
         self.log_user()
         if ldap_lib_installed:
             raise SkipTest('skipping due to missing ldap lib')
- 
+
         test_url = url(controller='admin/auth_settings',
                        action='auth_settings')
- 
+
         response = self.app.post(url=test_url,
             params={'ldap_host': 'Host',
                     'ldap_port': '123',
@@ -88,12 +88,12 @@ class TestAuthSettingsController(TestController):
                     'ldap_attr_firstname': '',
                     'ldap_attr_lastname': '',
                     'ldap_attr_email': ''})
- 
+
         response.mustcontain("""<span class="error-message">The LDAP Login"""
                              """ attribute of the CN must be specified""")
- 
+
     def test_ldap_login(self):
         pass
- 
+
     def test_ldap_login_incorrect(self):
         pass
