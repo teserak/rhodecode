@@ -637,6 +637,11 @@ class UserLog(Base, BaseModel):
     action = Column("action", UnicodeText(1200000, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
     action_date = Column("action_date", DateTime(timezone=False), nullable=True, unique=None, default=None)
 
+    def __unicode__(self):
+        return u"<%s('id:%s:%s')>" % (self.__class__.__name__,
+                                      self.repository_name,
+                                      self.action)
+
     @property
     def action_as_day(self):
         return datetime.date(*self.action_date.timetuple()[:3])
@@ -2157,7 +2162,7 @@ class Gist(Base, BaseModel):
     GIST_PRIVATE = u'private'
 
     gist_id = Column('gist_id', Integer(), primary_key=True)
-    gist_access_id = Column('gist_access_id', UnicodeText(1024))
+    gist_access_id = Column('gist_access_id', Unicode(250))
     gist_description = Column('gist_description', UnicodeText(1024))
     gist_owner = Column('user_id', Integer(), ForeignKey('users.user_id'), nullable=True)
     gist_expires = Column('gist_expires', Float(), nullable=False)
@@ -2185,7 +2190,7 @@ class Gist(Base, BaseModel):
             return alias_url.replace('{gistid}', self.gist_access_id)
 
         from pylons import url
-        return url('gist', id=self.gist_access_id, qualified=True)
+        return url('gist', gist_id=self.gist_access_id, qualified=True)
 
     @classmethod
     def base_path(cls):

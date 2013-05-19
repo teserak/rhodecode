@@ -46,7 +46,7 @@ from rhodecode.model.meta import Session
 from rhodecode.model.db import User, Repository, UserFollowing, RepoGroup,\
     RhodeCodeSetting, RepositoryField
 from rhodecode.model.forms import RepoForm, RepoFieldForm, RepoPermsForm
-from rhodecode.model.scm import ScmModel, RepoGroupList
+from rhodecode.model.scm import ScmModel, RepoGroupList, RepoList
 from rhodecode.model.repo import RepoModel
 from rhodecode.lib.compat import json
 from sqlalchemy.sql.expression import func
@@ -123,23 +123,24 @@ class ReposController(BaseRepoController):
 
         defaults = RepoModel()._get_defaults(repo_name)
 
+        _repos = Repository.query().order_by(Repository.repo_name).all()
+        read_access_repos = RepoList(_repos)
         c.repos_list = [('', _('--REMOVE FORK--'))]
-        c.repos_list += [(x.repo_id, x.repo_name) for x in
-                    Repository.query().order_by(Repository.repo_name).all()
-                    if x.repo_id != c.repo_info.repo_id]
+        c.repos_list += [(x.repo_id, x.repo_name)
+                         for x in read_access_repos
+                         if x.repo_id != c.repo_info.repo_id]
 
         defaults['id_fork_of'] = db_repo.fork.repo_id if db_repo.fork else ''
         return defaults
 
-    @HasPermissionAllDecorator('hg.admin')
     def index(self, format='html'):
         """GET /repos: All items in the collection"""
         # url('repos')
+        repo_list = Repository.query()\
+                                .order_by(func.lower(Repository.repo_name))\
+                                .all()
 
-        c.repos_list = Repository.query()\
-                        .order_by(func.lower(Repository.repo_name))\
-                        .all()
-
+        c.repos_list = RepoList(repo_list, perm_set=['repository.admin'])
         repos_data = RepoModel().get_repos_as_dict(repos_list=c.repos_list,
                                                    admin=True,
                                                    super_user_actions=True)
@@ -253,11 +254,15 @@ class ReposController(BaseRepoController):
         choices, c.landing_revs = ScmModel().get_repo_landing_revs(repo_name)
         c.landing_revs_choices = choices
         repo = Repository.get_by_repo_name(repo_name)
-        _form = RepoForm(edit=True, old_data={'repo_name': repo_name,
-                                              'repo_group': repo.group.get_dict() \
-                                              if repo.group else {}},
+        old_data = {
+            'repo_name': repo_name,
+            'repo_group': repo.group.get_dict() if repo.group else {},
+            'repo_type': repo.repo_type,
+        }
+        _form = RepoForm(edit=True, old_data=old_data,
                          repo_groups=c.repo_groups_choices,
                          landing_revs=c.landing_revs_choices)()
+
         try:
             form_result = _form.to_python(dict(request.POST))
             repo = repo_model.update(repo_name, **form_result)
