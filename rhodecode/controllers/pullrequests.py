@@ -66,7 +66,7 @@ class PullrequestsController(BaseRepoController):
         super(PullrequestsController, self).__before__()
         repo_model = RepoModel()
         c.users_array = repo_model.get_users_js()
-        c.users_groups_array = repo_model.get_users_groups_js()
+        c.users_groups_array = repo_model.get_user_groups_js()
 
     def _get_repo_refs(self, repo, rev=None, branch=None, branch_rev=None):
         """return a structure with repo's interesting changesets, suitable for
@@ -396,7 +396,7 @@ class PullrequestsController(BaseRepoController):
     def show(self, repo_name, pull_request_id):
         repo_model = RepoModel()
         c.users_array = repo_model.get_users_js()
-        c.users_groups_array = repo_model.get_users_groups_js()
+        c.users_groups_array = repo_model.get_user_groups_js()
         c.pull_request = PullRequest.get_or_404(pull_request_id)
         c.allowed_to_change_status = self._get_is_allowed_change_status(c.pull_request)
         cc_model = ChangesetCommentsModel()

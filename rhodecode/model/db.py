@@ -270,6 +270,22 @@ class RhodeCodeSetting(Base, BaseModel):
 
         return fd
 
+    @classmethod
+    def get_server_info(cls):
+        import pkg_resources
+        import platform
+        import rhodecode
+        from rhodecode.lib.utils import check_git_version
+        mods = [(p.project_name, p.version) for p in pkg_resources.working_set]
+        mods += [('git', str(check_git_version()))]
+        info = {
+            'modules': sorted(mods, key=lambda k: k[0].lower()),
+            'py_version': platform.python_version(),
+            'platform': platform.platform(),
+            'rhodecode_version': rhodecode.__version__
+        }
+        return info
+
 
 class RhodeCodeUi(Base, BaseModel):
     __tablename__ = 'rhodecode_ui'
@@ -700,14 +716,21 @@ class UserGroup(Base, BaseModel):
                                     "get_users_group_%s" % users_group_id))
         return users_group.get(users_group_id)
 
-    def get_api_data(self):
-        users_group = self
+    def get_api_data(self, with_members=True):
+        user_group = self
 
         data = dict(
-            users_group_id=users_group.users_group_id,
-            group_name=users_group.users_group_name,
-            active=users_group.users_group_active,
+            users_group_id=user_group.users_group_id,
+            group_name=user_group.users_group_name,
+            active=user_group.users_group_active,
+            owner=user_group.user.username,
         )
+        if with_members:
+            members = []
+            for user in user_group.members:
+                user = user.user
+                members.append(user.get_api_data())
+            data['members'] = members
 
         return data
 
@@ -1417,6 +1440,22 @@ class RepoGroup(Base, BaseModel):
         path_prefix = (self.parent_group.full_path_splitted if
                        self.parent_group else [])
         return RepoGroup.url_sep().join(path_prefix + [group_name])
+
+    def get_api_data(self):
+        """
+        Common function for generating repo api data
+
+        """
+        group = self
+        data = dict(
+            group_id=group.group_id,
+            group_name=group.group_name,
+            group_description=group.group_description,
+            parent_group=group.parent_group.group_name if group.parent_group else None,
+            repositories=[x.repo_name for x in group.repositories],
+            owner=group.user.username
+        )
+        return data
 
 
 class Permission(Base, BaseModel):

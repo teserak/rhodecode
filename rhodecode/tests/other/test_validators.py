@@ -7,7 +7,7 @@ from rhodecode.model import validators as v
 from rhodecode.model.users_group import UserGroupModel
 
 from rhodecode.model.meta import Session
-from rhodecode.model.repos_group import ReposGroupModel
+from rhodecode.model.repos_group import RepoGroupModel
 from rhodecode.model.db import ChangesetStatus, Repository
 from rhodecode.model.changeset_status import ChangesetStatusModel
 from rhodecode.tests.fixture import Fixture
@@ -74,7 +74,7 @@ class TestReposGroups(BaseTestCase):
 
     def test_ValidReposGroup(self):
         validator = v.ValidReposGroup()
-        model = ReposGroupModel()
+        model = RepoGroupModel()
         self.assertRaises(formencode.Invalid, validator.to_python,
                           {'group_name': HG_REPO, })
         gr = model.create(group_name='test_gr', group_description='desc',
@@ -149,7 +149,7 @@ class TestReposGroups(BaseTestCase):
         self.assertRaises(formencode.Invalid,
                           validator.to_python, {'repo_name': HG_REPO})
 
-        gr = ReposGroupModel().create(group_name='group_test',
+        gr = RepoGroupModel().create(group_name='group_test',
                                       group_description='desc',
                                       parent=None,
                                       owner=TEST_USER_ADMIN_LOGIN)

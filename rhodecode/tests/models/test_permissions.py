@@ -1,6 +1,6 @@
 from rhodecode.tests import *
 from rhodecode.tests.fixture import Fixture
-from rhodecode.model.repos_group import ReposGroupModel
+from rhodecode.model.repos_group import RepoGroupModel
 from rhodecode.model.repo import RepoModel
 from rhodecode.model.db import RepoGroup, User, UserGroupRepoGroupToPerm,\
     Permission, UserToPerm
@@ -48,9 +48,9 @@ class TestPermissions(BaseTestCase):
         UserModel().delete(self.u3)
         UserModel().delete(self.a1)
         if hasattr(self, 'g1'):
-            ReposGroupModel().delete(self.g1.group_id)
+            RepoGroupModel().delete(self.g1.group_id)
         if hasattr(self, 'g2'):
-            ReposGroupModel().delete(self.g2.group_id)
+            RepoGroupModel().delete(self.g2.group_id)
 
         if hasattr(self, 'ug1'):
             UserGroupModel().delete(self.ug1, force=True)
@@ -142,7 +142,7 @@ class TestPermissions(BaseTestCase):
         # grant perm for group this should not override permission from user
         # since it has explicitly set
         new_perm_gr = 'repository.write'
-        RepoModel().grant_users_group_permission(repo=HG_REPO,
+        RepoModel().grant_user_group_permission(repo=HG_REPO,
                                                  group_name=self.ug1,
                                                  perm=new_perm_gr)
         # check perms
@@ -165,7 +165,7 @@ class TestPermissions(BaseTestCase):
 
         # grant perm for group this should override default permission from user
         new_perm_gr = 'repository.write'
-        RepoModel().grant_users_group_permission(repo=HG_REPO,
+        RepoModel().grant_user_group_permission(repo=HG_REPO,
                                                  group_name=self.ug1,
                                                  perm=new_perm_gr)
         # check perms
@@ -199,7 +199,7 @@ class TestPermissions(BaseTestCase):
         # grant perm for group this should NOT override permission from user
         # since it's lower than granted
         new_perm_l = 'repository.read'
-        RepoModel().grant_users_group_permission(repo=HG_REPO,
+        RepoModel().grant_user_group_permission(repo=HG_REPO,
                                                  group_name=self.ug1,
                                                  perm=new_perm_l)
         # check perms
@@ -228,10 +228,10 @@ class TestPermissions(BaseTestCase):
                  {u'group1': u'group.read', u'group2': u'group.read'})
 
         #Change perms to none for both groups
-        ReposGroupModel().grant_user_permission(repos_group=self.g1,
+        RepoGroupModel().grant_user_permission(repos_group=self.g1,
                                                 user=self.anon,
                                                 perm='group.none')
-        ReposGroupModel().grant_user_permission(repos_group=self.g2,
+        RepoGroupModel().grant_user_permission(repos_group=self.g2,
                                                 user=self.anon,
                                                 perm='group.none')
 
@@ -259,10 +259,10 @@ class TestPermissions(BaseTestCase):
                  {u'group1': u'group.none', u'group2': u'group.none'})
 
         #grant permission for u2 !
-        ReposGroupModel().grant_user_permission(repos_group=self.g1,
+        RepoGroupModel().grant_user_permission(repos_group=self.g1,
                                                 user=self.u2,
                                                 perm='group.read')
-        ReposGroupModel().grant_user_permission(repos_group=self.g2,
+        RepoGroupModel().grant_user_permission(repos_group=self.g2,
                                                 user=self.u2,
                                                 perm='group.read')
         Session().commit()
@@ -289,7 +289,7 @@ class TestPermissions(BaseTestCase):
                          {u'group1': u'group.read'})
 
         # set default permission to none
-        ReposGroupModel().grant_user_permission(repos_group=self.g1,
+        RepoGroupModel().grant_user_permission(repos_group=self.g1,
                                                 user=self.anon,
                                                 perm='group.none')
         # make group
@@ -313,7 +313,7 @@ class TestPermissions(BaseTestCase):
                          {u'group1': u'group.none'})
 
         # grant ug1 read permissions for
-        ReposGroupModel().grant_users_group_permission(repos_group=self.g1,
+        RepoGroupModel().grant_users_group_permission(repos_group=self.g1,
                                                        group_name=self.ug1,
                                                        perm='group.read')
         Session().commit()
@@ -442,7 +442,7 @@ class TestPermissions(BaseTestCase):
         #set his permission as user group, he should still be admin
         self.ug1 = fixture.create_user_group('G1')
         UserGroupModel().add_user_to_group(self.ug1, self.u1)
-        RepoModel().grant_users_group_permission(self.test_repo,
+        RepoModel().grant_user_group_permission(self.test_repo,
                                                  group_name=self.ug1,
                                                  perm='repository.none')
 

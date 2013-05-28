@@ -26,8 +26,6 @@
 import logging
 import traceback
 import formencode
-import pkg_resources
-import platform
 
 from sqlalchemy import func
 from formencode import htmlfill
@@ -41,8 +39,7 @@ from rhodecode.lib.auth import LoginRequired, HasPermissionAllDecorator, \
     HasReposGroupPermissionAll, HasReposGroupPermissionAny, AuthUser
 from rhodecode.lib.base import BaseController, render
 from rhodecode.lib.celerylib import tasks, run_task
-from rhodecode.lib.utils import repo2db_mapper, set_rhodecode_config, \
-    check_git_version
+from rhodecode.lib.utils import repo2db_mapper, set_rhodecode_config
 from rhodecode.model.db import RhodeCodeUi, Repository, RepoGroup, \
     RhodeCodeSetting, PullRequest, PullRequestReviewers
 from rhodecode.model.forms import UserForm, ApplicationSettingsForm, \
@@ -68,12 +65,9 @@ class SettingsController(BaseController):
     @LoginRequired()
     def __before__(self):
         super(SettingsController, self).__before__()
-        c.modules = sorted([(p.project_name, p.version)
-                            for p in pkg_resources.working_set]
-                           + [('git', check_git_version())],
-                           key=lambda k: k[0].lower())
-        c.py_version = platform.python_version()
-        c.platform = platform.platform()
+        server_info = RhodeCodeSetting.get_server_info()
+        for key, val in server_info.iteritems():
+            setattr(c, key, val)
 
     @HasPermissionAllDecorator('hg.admin')
     def index(self, format='html'):

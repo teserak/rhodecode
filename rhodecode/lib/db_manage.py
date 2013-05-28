@@ -40,7 +40,7 @@ from rhodecode.model.db import User, Permission, RhodeCodeUi, \
     UserRepoGroupToPerm, CacheInvalidation, UserGroup
 
 from sqlalchemy.engine import create_engine
-from rhodecode.model.repos_group import ReposGroupModel
+from rhodecode.model.repos_group import RepoGroupModel
 #from rhodecode.model import meta
 from rhodecode.model.meta import Session, Base
 from rhodecode.model.repo import RepoModel
@@ -547,7 +547,7 @@ class DbManage(object):
 
             if default is None:
                 log.debug('missing default permission for group %s adding' % g)
-                perm_obj = ReposGroupModel()._create_default_perms(g)
+                perm_obj = RepoGroupModel()._create_default_perms(g)
                 self.sa.add(perm_obj)
 
     def reset_permissions(self, username):

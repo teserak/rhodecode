@@ -99,7 +99,7 @@ class UsersGroupsController(BaseController):
                                      key=lambda u: u[1].lower())
         repo_model = RepoModel()
         c.users_array = repo_model.get_users_js()
-        c.users_groups_array = repo_model.get_users_groups_js()
+        c.users_groups_array = repo_model.get_user_groups_js()
         c.available_permissions = config['available_permissions']
 
     def __load_defaults(self, user_group_id):

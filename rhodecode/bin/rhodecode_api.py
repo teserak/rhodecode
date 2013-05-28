@@ -106,15 +106,18 @@ def main(argv=None):
         print 'Calling method %s => %s' % (method, apihost)
 
     json_resp = api_call(apikey, apihost, method, **margs)
+    error_prefix = ''
     if json_resp['error']:
+        error_prefix = 'ERROR:'
         json_data = json_resp['error']
     else:
         json_data = json_resp['result']
     if args.format == FORMAT_JSON:
         print json.dumps(json_data)
     elif args.format == FORMAT_PRETTY:
-        print 'Server response \n%s' % (
-                json.dumps(json_data, indent=4, sort_keys=True))
+        print 'Server response \n%s%s' % (
+            error_prefix, json.dumps(json_data, indent=4, sort_keys=True)
+        )
     return 0
 
 if __name__ == '__main__':

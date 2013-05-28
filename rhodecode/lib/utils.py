@@ -55,7 +55,7 @@ from rhodecode.model import meta
 from rhodecode.model.db import Repository, User, RhodeCodeUi, \
     UserLog, RepoGroup, RhodeCodeSetting, CacheInvalidation, UserGroup
 from rhodecode.model.meta import Session
-from rhodecode.model.repos_group import ReposGroupModel
+from rhodecode.model.repos_group import RepoGroupModel
 from rhodecode.lib.utils2 import safe_str, safe_unicode
 from rhodecode.lib.vcs.utils.fakemod import create_module
 from rhodecode.model.users_group import UserGroupModel
@@ -256,17 +256,17 @@ def is_valid_repo(repo_name, base_path, scm=None):
         return False
 
 
-def is_valid_repos_group(repos_group_name, base_path, skip_path_check=False):
+def is_valid_repo_group(repo_group_name, base_path, skip_path_check=False):
     """
     Returns True if given path is a repository group False otherwise
 
     :param repo_name:
     :param base_path:
     """
-    full_path = os.path.join(safe_str(base_path), safe_str(repos_group_name))
+    full_path = os.path.join(safe_str(base_path), safe_str(repo_group_name))
 
     # check if it's not a repo
-    if is_valid_repo(repos_group_name, base_path):
+    if is_valid_repo(repo_group_name, base_path):
         return False
 
     try:
@@ -409,7 +409,7 @@ def map_groups(path):
 
     # last element is repo in nested groups structure
     groups = groups[:-1]
-    rgm = ReposGroupModel(sa)
+    rgm = RepoGroupModel(sa)
     owner = User.get_first_admin()
     for lvl, group_name in enumerate(groups):
         group_name = '/'.join(groups[:lvl] + [group_name])

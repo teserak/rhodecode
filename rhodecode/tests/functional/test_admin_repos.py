@@ -7,7 +7,7 @@ from rhodecode.lib import vcs
 from rhodecode.model.db import Repository, RepoGroup, UserRepoToPerm, User,\
     Permission
 from rhodecode.tests import *
-from rhodecode.model.repos_group import ReposGroupModel
+from rhodecode.model.repos_group import RepoGroupModel
 from rhodecode.model.repo import RepoModel
 from rhodecode.model.meta import Session
 from rhodecode.tests.fixture import Fixture
@@ -102,7 +102,7 @@ class TestAdminReposController(TestController):
 
         ## create GROUP
         group_name = 'sometest'
-        gr = ReposGroupModel().create(group_name=group_name,
+        gr = RepoGroupModel().create(group_name=group_name,
                                       group_description='test',
                                       owner=TEST_USER_ADMIN_LOGIN)
         Session().commit()
@@ -135,12 +135,12 @@ class TestAdminReposController(TestController):
         try:
             vcs.get_repo(os.path.join(TESTS_TMP_PATH, repo_name_full))
         except Exception:
-            ReposGroupModel().delete(group_name)
+            RepoGroupModel().delete(group_name)
             Session().commit()
             self.fail('no repo %s in filesystem' % repo_name)
 
         RepoModel().delete(repo_name_full)
-        ReposGroupModel().delete(group_name)
+        RepoGroupModel().delete(group_name)
         Session().commit()
 
     def test_create_git(self):

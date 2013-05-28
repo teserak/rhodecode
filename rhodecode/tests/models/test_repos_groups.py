@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from rhodecode.tests import *
 from rhodecode.tests.fixture import Fixture
 
-from rhodecode.model.repos_group import ReposGroupModel
+from rhodecode.model.repos_group import RepoGroupModel
 from rhodecode.model.repo import RepoModel
 from rhodecode.model.db import RepoGroup
 from rhodecode.model.meta import Session
@@ -17,7 +17,7 @@ def _update_group(id_, group_name, desc='desc', parent_id=None):
     form_data = fixture._get_group_create_params(group_name=group_name,
                                                  group_desc=desc,
                                                  group_parent_id=parent_id)
-    gr = ReposGroupModel().update(id_, form_data)
+    gr = RepoGroupModel().update(id_, form_data)
     return gr
 
 
@@ -55,7 +55,7 @@ class TestReposGroups(BaseTestCase):
         print os.listdir(TESTS_TMP_PATH)
 
     def __delete_group(self, id_):
-        ReposGroupModel().delete(id_)
+        RepoGroupModel().delete(id_)
 
     def test_create_group(self):
         g = fixture.create_group('newGroup')

@@ -5,9 +5,9 @@ from rhodecode.tests import *
 from rhodecode.model.db import Repository, User, RepoGroup, UserGroup
 from rhodecode.model.meta import Session
 from rhodecode.model.repo import RepoModel
-from rhodecode.model.repos_group import ReposGroupModel
+from rhodecode.model.repos_group import RepoGroupModel
 from rhodecode.model.users_group import UserGroupModel
-
+from rhodecode.model.gist import GistModel
 
 class Fixture(object):
 
@@ -104,7 +104,7 @@ class Fixture(object):
                 return gr
         form_data = self._get_group_create_params(group_name=name, **kwargs)
         owner = kwargs.get('cur_user', TEST_USER_ADMIN_LOGIN)
-        gr = ReposGroupModel().create(group_name=form_data['group_name'],
+        gr = RepoGroupModel().create(group_name=form_data['group_name'],
                                  group_description=form_data['group_name'],
                                  owner=owner, parent=form_data['group_parent_id'])
         Session().commit()
@@ -124,3 +124,30 @@ class Fixture(object):
         Session().commit()
         user_group = UserGroup.get_by_group_name(user_group.users_group_name)
         return user_group
+
+    def create_gist(self, **kwargs):
+        form_data = {
+            'description': 'new-gist',
+            'owner': TEST_USER_ADMIN_LOGIN,
+            'gist_type': GistModel.cls.GIST_PUBLIC,
+            'lifetime': -1,
+            'gist_mapping': {'filename1.txt':{'content':'hello world'},}
+        }
+        form_data.update(kwargs)
+        gist = GistModel().create(
+            description=form_data['description'],owner=form_data['owner'],
+            gist_mapping=form_data['gist_mapping'], gist_type=form_data['gist_type'],
+            lifetime=form_data['lifetime']
+        )
+        Session().commit()
+
+        return gist
+
+    def destroy_gists(self, gistid=None):
+        for g in GistModel.cls.get_all():
+            if gistid:
+                if gistid == g.gist_access_id:
+                    GistModel().delete(g)
+            else:
+                GistModel().delete(g)
+        Session().commit()

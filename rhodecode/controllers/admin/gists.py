@@ -105,7 +105,7 @@ class GistsController(BaseController):
             gist_type = Gist.GIST_PUBLIC if _public else Gist.GIST_PRIVATE
             gist = GistModel().create(
                 description=form_result['description'],
-                owner=c.rhodecode_user,
+                owner=c.rhodecode_user.user_id,
                 gist_mapping=nodes,
                 gist_type=gist_type,
                 lifetime=form_result['lifetime']

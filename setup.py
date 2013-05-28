@@ -45,7 +45,6 @@ requirements = [
     "pygments>=1.5",
     "whoosh>=2.4.0,<2.5",
     "celery>=2.2.5,<2.3",
-    "importlib==1.0.1",
     "babel",
     "python-dateutil>=1.5.0,<2.0.0",
     "dulwich>=0.8.7,<0.9.0",
@@ -59,6 +58,7 @@ if sys.version_info < (2, 6):
     requirements.append("pysqlite")
 
 if sys.version_info < (2, 7):
+    requirements.append("importlib==1.0.1")
     requirements.append("unittest2")
     requirements.append("argparse")
 
