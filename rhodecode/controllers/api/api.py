@@ -116,7 +116,7 @@ def get_repo_or_error(repoid):
     """
     Get repo by id or name or return JsonRPCError if not found
 
-    :param userid:
+    :param repoid:
     """
     repo = RepoModel().get_repo(repoid)
     if repo is None:
@@ -215,7 +215,7 @@ class ApiController(JSONRPCController):
         :param repoid:
         """
         repo = get_repo_or_error(repoid)
-        if HasPermissionAnyApi('hg.admin')(user=apiuser) is False:
+        if not HasPermissionAnyApi('hg.admin')(user=apiuser):
             # check if we have admin permission for this repo !
             if HasRepoPermissionAnyApi('repository.admin',
                                        'repository.write')(user=apiuser,
@@ -231,6 +231,7 @@ class ApiController(JSONRPCController):
                 'Error occurred during cache invalidation action'
             )
 
+    # permission check inside
     def lock(self, apiuser, repoid, locked=Optional(None),
              userid=Optional(OAttr('apiuser'))):
         """
@@ -323,9 +324,8 @@ class ApiController(JSONRPCController):
         :param apiuser:
         :param userid:
         """
-        if HasPermissionAnyApi('hg.admin')(user=apiuser):
-            pass
-        else:
+
+        if not HasPermissionAnyApi('hg.admin')(user=apiuser):
             #make sure normal user does not pass someone else userid,
             #he is not allowed to do that
             if not isinstance(userid, Optional) and userid != apiuser.user_id:
@@ -375,7 +375,7 @@ class ApiController(JSONRPCController):
         :param apiuser:
         :param userid:
         """
-        if HasPermissionAnyApi('hg.admin')(user=apiuser) is False:
+        if not HasPermissionAnyApi('hg.admin')(user=apiuser):
             #make sure normal user does not pass someone else userid,
             #he is not allowed to do that
             if not isinstance(userid, Optional) and userid != apiuser.user_id:
@@ -673,10 +673,10 @@ class ApiController(JSONRPCController):
         """
         repo = get_repo_or_error(repoid)
 
-        if HasPermissionAnyApi('hg.admin')(user=apiuser) is False:
+        if not HasPermissionAnyApi('hg.admin')(user=apiuser):
             # check if we have admin permission for this repo !
-            if HasRepoPermissionAnyApi('repository.admin')(user=apiuser,
-                                            repo_name=repo.repo_name) is False:
+            if not HasRepoPermissionAnyApi('repository.admin')(user=apiuser,
+                                            repo_name=repo.repo_name):
                 raise JSONRPCError('repository `%s` does not exist' % (repoid))
 
         members = []
@@ -705,6 +705,7 @@ class ApiController(JSONRPCController):
         data['followers'] = followers
         return data
 
+    # permission check inside
     def get_repos(self, apiuser):
         """"
         Get all repositories
@@ -915,9 +916,9 @@ class ApiController(JSONRPCController):
             _forks_msg = ''
             _forks = [f for f in repo.forks]
             if handle_forks == 'detach':
-                _forks_msg = ' ' + _('Detached %s forks') % len(_forks)
+                _forks_msg = ' ' + 'Detached %s forks' % len(_forks)
             elif handle_forks == 'delete':
-                _forks_msg = ' ' + _('Deleted %s forks') % len(_forks)
+                _forks_msg = ' ' + 'Deleted %s forks' % len(_forks)
             elif _forks:
                 raise JSONRPCError(
                     'Cannot delete `%s` it still contains attached forks'

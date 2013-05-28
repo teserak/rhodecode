@@ -53,8 +53,7 @@ class SimpleGitUploadPackHandler(dulserver.UploadPackHandler):
         self.progress("counting objects: %d, done.\n" % len(objects_iter))
         dulserver.write_pack_objects(dulserver.ProtocolFile(None, write),
                                      objects_iter)
-        messages = []
-        messages.append('thank you for using rhodecode')
+        messages = ['thank you for using rhodecode']
 
         for msg in messages:
             self.progress(msg + "\n")
@@ -97,7 +96,7 @@ def is_git(environ):
     path_info = environ['PATH_INFO']
     isgit_path = GIT_PROTO_PAT.match(path_info)
     log.debug('pathinfo: %s detected as GIT %s' % (
-        path_info, isgit_path != None)
+        path_info, isgit_path is not None)
     )
     return isgit_path
 

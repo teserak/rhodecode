@@ -30,13 +30,13 @@ import stat
 import argparse
 import fileinput
 
-from rhodecode.bin.base import api_call, RcConf
+from rhodecode.bin.base import json, api_call, RcConf, FORMAT_JSON, FORMAT_PRETTY
 
 
 def argparser(argv):
     usage = (
       "rhodecode-gist [-h] [--format=FORMAT] [--apikey=APIKEY] [--apihost=APIHOST] "
-      "[--config=CONFIG] [--save-config] "
+      "[--config=CONFIG] [--save-config] [GIST OPTIONS] "
       "[filename or stdin use - for terminal stdin ]\n"
       "Create config file: rhodecode-gist --apikey=<key> --apihost=http://rhodecode.server --save-config"
     )
@@ -48,18 +48,24 @@ def argparser(argv):
     group = parser.add_argument_group('config')
     group.add_argument('--apikey', help='api access key')
     group.add_argument('--apihost', help='api host')
-    group.add_argument('--config', help='config file')
+    group.add_argument('--config', help='config file path DEFAULT: ~/.rhodecode')
     group.add_argument('--save-config', action='store_true',
                        help='save the given config into a file')
 
     group = parser.add_argument_group('GIST')
-    group.add_argument('-f', '--filename', help='set uploaded gist filename')
     group.add_argument('-p', '--private', action='store_true',
-                       help='Create private Gist')
+                       help='create private Gist')
+    group.add_argument('-f', '--filename',
+                       help='set uploaded gist filename, '
+                            'also defines syntax highlighting')
     group.add_argument('-d', '--description', help='Gist description')
     group.add_argument('-l', '--lifetime', metavar='MINUTES',
-                       help='Gist lifetime in minutes, -1 (Default) is forever')
-
+                       help='gist lifetime in minutes, -1 (DEFAULT) is forever')
+    group.add_argument('--format', dest='format', type=str,
+                       help='output format DEFAULT: `%s` can '
+                       'be also `%s`' % (FORMAT_PRETTY, FORMAT_JSON),
+            default=FORMAT_PRETTY
+    )
     args, other = parser.parse_known_args()
     return parser, args, other
 
@@ -93,7 +99,7 @@ def _run(argv):
         if filename == '-':
             filename = DEFAULT_FILENAME
             gist_content = ''
-            for line in fileinput.input():
+            for line in fileinput.input('-'):
                 gist_content += line
         else:
             with open(filename, 'rb') as f:
@@ -135,7 +141,12 @@ def _run(argv):
             files=files
         )
 
-        api_call(apikey, host, 'json', 'create_gist', **margs)
+        json_data = api_call(apikey, host, 'create_gist', **margs)['result']
+        if args.format == FORMAT_JSON:
+            print json.dumps(json_data)
+        elif args.format == FORMAT_PRETTY:
+            print 'Created %s gist %s' % (json_data['gist_type'],
+                                          json_data['gist_url'])
     return 0
 
 
