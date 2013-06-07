@@ -26,7 +26,7 @@
 import sys
 import platform
 
-VERSION = (1, 7, 0, 'dev')
+VERSION = (1, 8, 0, 'dev')
 BACKENDS = {
     'hg': 'Mercurial repository',
     'git': 'Git repository',
@@ -51,7 +51,7 @@ except ImportError:
 
 __version__ = ('.'.join((str(each) for each in VERSION[:3])) +
                '.'.join(VERSION[3:]))
-__dbversion__ = 13  # defines current db version for migrations
+__dbversion__ = 14  # defines current db version for migrations
 __platform__ = platform.system()
 __license__ = 'GPLv3'
 __py_version__ = sys.version_info
