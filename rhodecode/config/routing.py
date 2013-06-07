@@ -20,7 +20,7 @@ def make_map(config):
     rmap.explicit = False
 
     from rhodecode.lib.utils import is_valid_repo
-    from rhodecode.lib.utils import is_valid_repos_group
+    from rhodecode.lib.utils import is_valid_repo_group
 
     def check_repo(environ, match_dict):
         """
@@ -53,8 +53,8 @@ def make_map(config):
         :param environ:
         :param match_dict:
         """
-        repos_group_name = match_dict.get('group_name')
-        return is_valid_repos_group(repos_group_name, config['base_path'])
+        repo_group_name = match_dict.get('group_name')
+        return is_valid_repo_group(repo_group_name, config['base_path'])
 
     def check_group_skip_path(environ, match_dict):
         """
@@ -64,9 +64,9 @@ def make_map(config):
         :param environ:
         :param match_dict:
         """
-        repos_group_name = match_dict.get('group_name')
-        return is_valid_repos_group(repos_group_name, config['base_path'],
-                                    skip_path_check=True)
+        repo_group_name = match_dict.get('group_name')
+        return is_valid_repo_group(repo_group_name, config['base_path'],
+                                   skip_path_check=True)
 
     def check_user_group(environ, match_dict):
         """
@@ -312,13 +312,11 @@ def make_map(config):
     rmap.resource('default', 'defaults',
                   controller='admin/defaults', path_prefix=ADMIN_PREFIX)
 
-    ##ADMIN LDAP SETTINGS
-    rmap.connect('ldap_settings', '%s/ldap' % ADMIN_PREFIX,
-                 controller='admin/ldap_settings', action='ldap_settings',
+    rmap.connect('auth_settings', '%s/auth' % ADMIN_PREFIX,
+                 controller='admin/auth_settings', action='auth_settings',
                  conditions=dict(method=["POST"]))
-
-    rmap.connect('ldap_home', '%s/ldap' % ADMIN_PREFIX,
-                 controller='admin/ldap_settings')
+    rmap.connect('auth_home', '%s/auth' % ADMIN_PREFIX,
+                 controller='admin/auth_settings')
 
     #ADMIN SETTINGS REST ROUTES
     with rmap.submapper(path_prefix=ADMIN_PREFIX,

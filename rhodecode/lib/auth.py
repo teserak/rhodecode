@@ -37,18 +37,13 @@ from pylons.i18n.translation import _
 from sqlalchemy.orm.exc import ObjectDeletedError
 
 from rhodecode import __platform__, is_windows, is_unix
-from rhodecode.model.meta import Session
-
-from rhodecode.lib.utils2 import str2bool, safe_unicode, aslist
-from rhodecode.lib.exceptions import LdapPasswordError, LdapUsernameError,\
-    LdapImportError
-from rhodecode.lib.utils import get_repo_slug, get_repos_group_slug,\
-    get_user_group_slug
-from rhodecode.lib.auth_ldap import AuthLdap
-
 from rhodecode.model import meta
 from rhodecode.model.user import UserModel
-from rhodecode.model.db import Permission, RhodeCodeSetting, User, UserIpMap
+from rhodecode.model.db import Permission, User, UserIpMap
+
+from rhodecode.lib.utils2 import safe_unicode, aslist
+from rhodecode.lib.utils import get_repo_slug, get_repos_group_slug,\
+    get_user_group_slug
 from rhodecode.lib.caching_query import FromCache
 
 log = logging.getLogger(__name__)
@@ -149,166 +144,6 @@ def generate_api_key(str_, salt=None):
     return hashlib.sha1(str_ + salt).hexdigest()
 
 
-def authfunc(environ, username, password):
-    """
-    Dummy authentication wrapper function used in Mercurial and Git for
-    access control.
-
-    :param environ: needed only for using in Basic auth
-    """
-    return authenticate(username, password)
-
-
-def authenticate(username, password):
-    """
-    Authentication function used for access control,
-    firstly checks for db authentication then if ldap is enabled for ldap
-    authentication, also creates ldap user if not in database
-
-    :param username: username
-    :param password: password
-    """
-
-    user_model = UserModel()
-    user = User.get_by_username(username)
-
-    log.debug('Authenticating user using RhodeCode account')
-    if user is not None and not user.ldap_dn:
-        if user.active:
-            if user.username == 'default' and user.active:
-                log.info('user %s authenticated correctly as anonymous user' %
-                         username)
-                return True
-
-            elif user.username == username and check_password(password,
-                                                              user.password):
-                log.info('user %s authenticated correctly' % username)
-                return True
-        else:
-            log.warning('user %s tried auth but is disabled' % username)
-
-    else:
-        log.debug('Regular authentication failed')
-        user_obj = User.get_by_username(username, case_insensitive=True)
-
-        if user_obj is not None and not user_obj.ldap_dn:
-            log.debug('this user already exists as non ldap')
-            return False
-
-        ldap_settings = RhodeCodeSetting.get_ldap_settings()
-        #======================================================================
-        # FALLBACK TO LDAP AUTH IF ENABLE
-        #======================================================================
-        if str2bool(ldap_settings.get('ldap_active')):
-            log.debug("Authenticating user using ldap")
-            kwargs = {
-                  'server': ldap_settings.get('ldap_host', ''),
-                  'base_dn': ldap_settings.get('ldap_base_dn', ''),
-                  'port': ldap_settings.get('ldap_port'),
-                  'bind_dn': ldap_settings.get('ldap_dn_user'),
-                  'bind_pass': ldap_settings.get('ldap_dn_pass'),
-                  'tls_kind': ldap_settings.get('ldap_tls_kind'),
-                  'tls_reqcert': ldap_settings.get('ldap_tls_reqcert'),
-                  'ldap_filter': ldap_settings.get('ldap_filter'),
-                  'search_scope': ldap_settings.get('ldap_search_scope'),
-                  'attr_login': ldap_settings.get('ldap_attr_login'),
-                  'ldap_version': 3,
-                  }
-            log.debug('Checking for ldap authentication')
-            try:
-                aldap = AuthLdap(**kwargs)
-                (user_dn, ldap_attrs) = aldap.authenticate_ldap(username,
-                                                                password)
-                log.debug('Got ldap DN response %s' % user_dn)
-
-                get_ldap_attr = lambda k: ldap_attrs.get(ldap_settings\
-                                                           .get(k), [''])[0]
-
-                user_attrs = {
-                 'name': safe_unicode(get_ldap_attr('ldap_attr_firstname')),
-                 'lastname': safe_unicode(get_ldap_attr('ldap_attr_lastname')),
-                 'email': get_ldap_attr('ldap_attr_email'),
-                 'active': 'hg.extern_activate.auto' in User.get_default_user()\
-                                                .AuthUser.permissions['global']
-                }
-
-                # don't store LDAP password since we don't need it. Override
-                # with some random generated password
-                _password = PasswordGenerator().gen_password(length=8)
-                # create this user on the fly if it doesn't exist in rhodecode
-                # database
-                if user_model.create_ldap(username, _password, user_dn,
-                                          user_attrs):
-                    log.info('created new ldap user %s' % username)
-
-                Session().commit()
-                return True
-            except (LdapUsernameError, LdapPasswordError, LdapImportError):
-                pass
-            except (Exception,):
-                log.error(traceback.format_exc())
-                pass
-    return False
-
-
-def login_container_auth(username):
-    user = User.get_by_username(username)
-    if user is None:
-        user_attrs = {
-            'name': username,
-            'lastname': None,
-            'email': None,
-            'active': 'hg.extern_activate.auto' in User.get_default_user()\
-                                            .AuthUser.permissions['global']
-        }
-        user = UserModel().create_for_container_auth(username, user_attrs)
-        if not user:
-            return None
-        log.info('User %s was created by container authentication' % username)
-
-    if not user.active:
-        return None
-
-    user.update_lastlogin()
-    Session().commit()
-
-    log.debug('User %s is now logged in by container authentication',
-              user.username)
-    return user
-
-
-def get_container_username(environ, config, clean_username=False):
-    """
-    Get's the container_auth username (or email). It tries to get username
-    from REMOTE_USER if container_auth_enabled is enabled, if that fails
-    it tries to get username from HTTP_X_FORWARDED_USER if proxypass_auth_enabled
-    is enabled. clean_username extracts the username from this data if it's
-    having @ in it.
-
-    :param environ:
-    :param config:
-    :param clean_username:
-    """
-    username = None
-
-    if str2bool(config.get('container_auth_enabled', False)):
-        from paste.httpheaders import REMOTE_USER
-        username = REMOTE_USER(environ)
-        log.debug('extracted REMOTE_USER:%s' % (username))
-
-    if not username and str2bool(config.get('proxypass_auth_enabled', False)):
-        username = environ.get('HTTP_X_FORWARDED_USER')
-        log.debug('extracted HTTP_X_FORWARDED_USER:%s' % (username))
-
-    if username and clean_username:
-        # Removing realm and domain from username
-        username = username.partition('@')[0]
-        username = username.rpartition('\\')[2]
-    log.debug('Received username %s from container' % username)
-
-    return username
-
-
 class CookieStoreWrapper(object):
 
     def __init__(self, cookie_store):
@@ -367,17 +202,9 @@ class  AuthUser(object):
             log.debug('Auth User lookup by USER ID %s' % self.user_id)
             is_user_loaded = user_model.fill_data(self, user_id=self.user_id)
         # lookup by username
-        elif self.username and \
-            str2bool(config.get('container_auth_enabled', False)):
-
+        elif self.username:
             log.debug('Auth User lookup by USER NAME %s' % self.username)
-            dbuser = login_container_auth(self.username)
-            if dbuser is not None:
-                log.debug('filling all attributes to object')
-                for k, v in dbuser.get_dict().items():
-                    setattr(self, k, v)
-                self.set_authenticated()
-                is_user_loaded = True
+            is_user_loaded = user_model.fill_data(self, username=self.username)
         else:
             log.debug('No data in %s that could been used to log in' % self)
 
@@ -531,38 +358,43 @@ class LoginRequired(object):
         cls = fargs[0]
         user = cls.rhodecode_user
         loc = "%s:%s" % (cls.__class__.__name__, func.__name__)
-        # defined whitelist of controllers which API access will be enabled
-        whitelist = aslist(config.get('api_access_controllers_whitelist'),
-                           sep=',')
-        api_access_whitelist = loc in whitelist
-        log.debug('loc:%s is in API whitelist:%s:%s' % (loc, whitelist,
-                                                        api_access_whitelist))
-        #check IP
-        ip_access_ok = True
+
+        # check if our IP is allowed
+        ip_access_valid = True
         if not user.ip_allowed:
             from rhodecode.lib import helpers as h
             h.flash(h.literal(_('IP %s not allowed' % (user.ip_addr))),
                     category='warning')
-            ip_access_ok = False
+            ip_access_valid = False
 
-        api_access_ok = False
-        if self.api_access or api_access_whitelist:
+        # check if we used an APIKEY and it's a valid one
+        # defined whitelist of controllers which API access will be enabled
+        whitelist = aslist(config.get('api_access_controllers_whitelist'), sep=',')
+        api_access_valid = loc in whitelist
+        log.debug('loc:%s is in API whitelist:%s:%s' % (loc, whitelist,
+                                                        api_access_valid))
+
+        # explicit controller is enabled or API is in our whitelist
+        if self.api_access or api_access_valid:
             log.debug('Checking API KEY access for %s' % cls)
             if user.api_key == request.GET.get('api_key'):
-                api_access_ok = True
+                api_access_valid = True
             else:
+                api_access_valid = False
                 log.debug("API KEY token not valid")
 
         log.debug('Checking if %s is authenticated @ %s' % (user.username, loc))
-        if (user.is_authenticated or api_access_ok) and ip_access_ok:
-            reason = 'RegularAuth' if user.is_authenticated else 'APIAuth'
-            log.info('user %s is authenticated and granted access to %s '
-                     'using %s' % (user.username, loc, reason)
+        reason = 'RegularAuth' if user.is_authenticated else 'APIAuth'
+
+        if ip_access_valid and (user.is_authenticated or api_access_valid):
+            log.info('user %s authenticating with:%s IS authenticated on func %s '
+                     % (user, reason, loc)
             )
             return func(*fargs, **fkwargs)
         else:
-            log.warn('user %s NOT authenticated on func: %s' % (
-                user, loc)
+            log.warn('user %s authenticating with:%s NOT authenticated on func: %s: '
+                     'IP_ACCESS:%s API_ACCESS:%s'
+                     % (user, reason, loc, ip_access_valid, api_access_valid)
             )
             p = url.current()
 
@@ -584,7 +416,7 @@ class NotAnonymous(object):
 
         log.debug('Checking if user is not anonymous @%s' % cls)
 
-        anonymous = self.user.username == 'default'
+        anonymous = self.user.username == User.DEFAULT_USER
 
         if anonymous:
             p = url.current()
@@ -625,7 +457,7 @@ class PermsDecorator(object):
 
         else:
             log.debug('Permission denied for %s %s' % (cls, self.user))
-            anonymous = self.user.username == 'default'
+            anonymous = self.user.username == User.DEFAULT_USER
 
             if anonymous:
                 p = url.current()
@@ -813,13 +645,15 @@ class PermsFunction(object):
             return False
         self.user_perms = user.permissions
         if self.check_permissions():
-            log.debug('Permission to %s granted for user: %s @ %s', self.repo_name, user,
-                      check_location or 'unspecified location')
+            log.debug('Permission to %s granted for user: %s @ %s'
+                      % (self.repo_name, user,
+                         check_location or 'unspecified location'))
             return True
 
         else:
-            log.debug('Permission to %s denied for user: %s @ %s', self.repo_name, user,
-                        check_location or 'unspecified location')
+            log.debug('Permission to %s denied for user: %s @ %s'
+                      % (self.repo_name, user,
+                        check_location or 'unspecified location'))
             return False
 
     def check_permissions(self):
@@ -947,6 +781,7 @@ class HasUserGroupPermissionAll(PermsFunction):
         if self.required_perms.issubset(self._user_perms):
             return True
         return False
+
 
 #==============================================================================
 # SPECIAL VERSION TO HANDLE MIDDLEWARE AUTH

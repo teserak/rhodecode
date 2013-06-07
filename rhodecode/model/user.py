@@ -100,7 +100,8 @@ class UserModel(BaseModel):
             raise
 
     def create_or_update(self, username, password, email, firstname='',
-                         lastname='', active=True, admin=False, ldap_dn=None):
+                         lastname='', active=True, admin=False,
+                         extern_type=None, extern_name=None):
         """
         Creates a new instance if not found, or updates current one
 
@@ -112,7 +113,8 @@ class UserModel(BaseModel):
         :param lastname:
         :param active:
         :param admin:
-        :param ldap_dn:
+        :param extern_name:
+        :param extern_type:
         """
 
         from rhodecode.lib.auth import get_crypt_password
@@ -137,7 +139,8 @@ class UserModel(BaseModel):
                 new_user.api_key = generate_api_key(username)
             new_user.email = email
             new_user.active = active
-            new_user.ldap_dn = safe_unicode(ldap_dn) if ldap_dn else None
+            new_user.extern_name = safe_unicode(extern_name) if extern_name else None
+            new_user.extern_type = safe_unicode(extern_type) if extern_type else None
             new_user.name = firstname
             new_user.lastname = lastname
             self.sa.add(new_user)
@@ -167,6 +170,8 @@ class UserModel(BaseModel):
                 new_user.active = attrs.get('active', True)
                 new_user.name = attrs['name'] or generate_email(username)
                 new_user.lastname = attrs['lastname']
+                new_user.extern_name = username
+                new_user.extern_type = 'container'
 
                 self.sa.add(new_user)
                 return new_user
@@ -204,7 +209,8 @@ class UserModel(BaseModel):
                 new_user.api_key = generate_api_key(username)
                 new_user.email = attrs['email'] or generate_email(username)
                 new_user.active = attrs.get('active', True)
-                new_user.ldap_dn = safe_unicode(user_dn)
+                new_user.extern_name = safe_unicode(user_dn)
+                new_user.extern_type = 'ldap'
                 new_user.name = attrs['name']
                 new_user.lastname = attrs['lastname']
 
@@ -252,7 +258,7 @@ class UserModel(BaseModel):
         from rhodecode.lib.auth import get_crypt_password
         try:
             user = self.get(user_id, cache=False)
-            if user.username == 'default':
+            if user.username == User.DEFAULT_USER:
                 raise DefaultUserException(
                                 _("You can't Edit this user since it's"
                                   " crucial for entire application"))
@@ -276,7 +282,7 @@ class UserModel(BaseModel):
         from rhodecode.lib.auth import get_crypt_password
         try:
             user = self._get_user(user)
-            if user.username == 'default':
+            if user.username == User.DEFAULT_USER:
                 raise DefaultUserException(
                     _("You can't Edit this user since it's"
                       " crucial for entire application")
@@ -298,7 +304,7 @@ class UserModel(BaseModel):
         user = self._get_user(user)
 
         try:
-            if user.username == 'default':
+            if user.username == User.DEFAULT_USER:
                 raise DefaultUserException(
                     _(u"You can't remove this user since it's"
                       " crucial for entire application")
@@ -373,7 +379,7 @@ class UserModel(BaseModel):
 
         return True
 
-    def fill_data(self, auth_user, user_id=None, api_key=None):
+    def fill_data(self, auth_user, user_id=None, api_key=None, username=None):
         """
         Fetches auth_user by user_id,or api_key if present.
         Fills auth_user attributes with those taken from database.
@@ -383,15 +389,18 @@ class UserModel(BaseModel):
         :param auth_user: instance of user to set attributes
         :param user_id: user id to fetch by
         :param api_key: api key to fetch by
+        :param username: username to fetch by
         """
-        if user_id is None and api_key is None:
-            raise Exception('You need to pass user_id or api_key')
+        if user_id is None and api_key is None and username is None:
+            raise Exception('You need to pass user_id, api_key or username')
 
         try:
-            if api_key:
-                dbuser = self.get_by_api_key(api_key)
-            else:
+            if user_id:
                 dbuser = self.get(user_id)
+            elif api_key:
+                dbuser = self.get_by_api_key(api_key)
+            elif username:
+                dbuser = self.get_by_username(username)
 
             if dbuser is not None and dbuser.active:
                 log.debug('filling %s data' % dbuser)

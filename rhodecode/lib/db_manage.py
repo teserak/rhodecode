@@ -41,7 +41,7 @@ from rhodecode.model.db import User, Permission, RhodeCodeUi, \
     UserRepoGroupToPerm, CacheInvalidation, UserGroup
 
 from sqlalchemy.engine import create_engine
-from rhodecode.model.repos_group import ReposGroupModel
+from rhodecode.model.repos_group import RepoGroupModel
 #from rhodecode.model import meta
 from rhodecode.model.meta import Session, Base
 from rhodecode.model.repo import RepoModel
@@ -359,7 +359,7 @@ class DbManage(object):
         used mostly for anonymous access
         """
         def_user = self.sa.query(User)\
-                .filter(User.username == 'default')\
+                .filter(User.username == User.DEFAULT_USER)\
                 .one()
 
         def_user.name = 'Anonymous'
@@ -513,37 +513,35 @@ class DbManage(object):
         hggit.ui_active = False
         self.sa.add(hggit)
 
-    def create_ldap_options(self, skip_existing=False):
-        """Creates ldap settings"""
+    def create_auth_plugin_options(self, skip_existing=False):
+        """
+        Create default auth plugin settings, and make it active
 
-        for k, v in [('ldap_active', 'false'), ('ldap_host', ''),
-                    ('ldap_port', '389'), ('ldap_tls_kind', 'PLAIN'),
-                    ('ldap_tls_reqcert', ''), ('ldap_dn_user', ''),
-                    ('ldap_dn_pass', ''), ('ldap_base_dn', ''),
-                    ('ldap_filter', ''), ('ldap_search_scope', ''),
-                    ('ldap_attr_login', ''), ('ldap_attr_firstname', ''),
-                    ('ldap_attr_lastname', ''), ('ldap_attr_email', '')]:
+        :param skip_existing:
+        """
 
-            if skip_existing and RhodeCodeSetting.get_by_name(k) is not None:
+        for k, v, t in [('auth_plugins', 'rhodecode.lib.auth_modules.auth_rhodecode', 'list'),
+                     ('auth_rhodecode_enabled', 'True', 'bool')]:
+            if skip_existing and RhodeCodeSetting.get_by_name(k) != None:
                 log.debug('Skipping option %s' % k)
                 continue
-            setting = RhodeCodeSetting(k, v)
+            setting = RhodeCodeSetting(k, v, t)
             self.sa.add(setting)
 
     def create_default_options(self, skip_existing=False):
         """Creates default settings"""
 
-        for k, v in [
-            ('default_repo_enable_locking',  False),
-            ('default_repo_enable_downloads', False),
-            ('default_repo_enable_statistics', False),
-            ('default_repo_private', False),
-            ('default_repo_type', 'hg')]:
+        for k, v, t in [
+            ('default_repo_enable_locking',  False, 'bool'),
+            ('default_repo_enable_downloads', False, 'bool'),
+            ('default_repo_enable_statistics', False, 'bool'),
+            ('default_repo_private', False, 'bool'),
+            ('default_repo_type', 'hg', 'unicode')]:
 
-            if skip_existing and RhodeCodeSetting.get_by_name(k) is not None:
+            if skip_existing and RhodeCodeSetting.get_by_name(k) != None:
                 log.debug('Skipping option %s' % k)
                 continue
-            setting = RhodeCodeSetting(k, v)
+            setting = RhodeCodeSetting(k, v, t)
             self.sa.add(setting)
 
     def fixup_groups(self):
@@ -559,7 +557,7 @@ class DbManage(object):
 
             if default is None:
                 log.debug('missing default permission for group %s adding' % g)
-                perm_obj = ReposGroupModel()._create_default_perms(g)
+                perm_obj = RepoGroupModel()._create_default_perms(g)
                 self.sa.add(perm_obj)
 
     def reset_permissions(self, username):
@@ -666,7 +664,7 @@ class DbManage(object):
             sett = RhodeCodeSetting(key, val)
             self.sa.add(sett)
 
-        self.create_ldap_options()
+        self.create_auth_plugin_options()
         self.create_default_options()
 
         log.info('created ui config')
@@ -675,15 +673,16 @@ class DbManage(object):
         log.info('creating user %s' % username)
         UserModel().create_or_update(username, password, email,
                                      firstname='RhodeCode', lastname='Admin',
-                                     active=True, admin=admin)
+                                     active=True, admin=admin,
+                                     extern_type="rhodecode")
 
     def create_default_user(self):
         log.info('creating default user')
         # create default user for handling default permissions.
-        UserModel().create_or_update(username='default',
-                              password=str(uuid.uuid1())[:8],
-                              email='anonymous@rhodecode.org',
-                              firstname='Anonymous', lastname='User')
+        UserModel().create_or_update(username=User.DEFAULT_USER,
+                                     password=str(uuid.uuid1())[:16],
+                                     email='anonymous@rhodecode.org',
+                                     firstname='Anonymous', lastname='User')
 
     def create_permissions(self):
         """

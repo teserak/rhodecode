@@ -1,7 +1,7 @@
 from rhodecode.tests import *
 from rhodecode.tests.fixture import Fixture
 
-from rhodecode.model.repos_group import ReposGroupModel
+from rhodecode.model.repos_group import RepoGroupModel
 from rhodecode.model.repo import RepoModel
 from rhodecode.model.db import RepoGroup, Repository, User
 from rhodecode.model.user import UserModel
@@ -20,7 +20,7 @@ def _destroy_project_tree(test_u1_id):
         if isinstance(el, Repository):
             RepoModel().delete(el)
         elif isinstance(el, RepoGroup):
-            ReposGroupModel().delete(el, force_delete=True)
+            RepoGroupModel().delete(el, force_delete=True)
 
     u = User.get(test_u1_id)
     Session().delete(u)

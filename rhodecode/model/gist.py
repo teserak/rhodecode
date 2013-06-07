@@ -46,6 +46,7 @@ GIST_METADATA_FILE = '.rc_gist_metadata'
 
 
 class GistModel(BaseModel):
+    cls = Gist
 
     def _get_gist(self, gist):
         """
@@ -53,8 +54,7 @@ class GistModel(BaseModel):
 
         :param gist: GistID, gist_access_id, or Gist instance
         """
-        return self._get_instance(Gist, gist,
-                                  callback=Gist.get_by_access_id)
+        return self._get_instance(Gist, gist, callback=Gist.get_by_access_id)
 
     def __delete_gist(self, gist):
         """
@@ -64,7 +64,7 @@ class GistModel(BaseModel):
         """
         root_path = RepoModel().repos_path
         rm_path = os.path.join(root_path, GIST_STORE_LOC, gist.gist_access_id)
-        log.info("Removing %s" % (rm_path))
+        log.info("Removing %s" % (rm_path,))
         shutil.rmtree(rm_path)
 
     def get_gist(self, gist):
@@ -92,6 +92,7 @@ class GistModel(BaseModel):
         :param gist_type: type of gist private/public
         :param lifetime: in minutes, -1 == forever
         """
+        owner = self._get_user(owner)
         gist_id = safe_unicode(unique_id(20))
         lifetime = safe_int(lifetime, -1)
         gist_expires = time.time() + (lifetime * 60) if lifetime != -1 else -1
@@ -163,14 +164,12 @@ class GistModel(BaseModel):
 
     def delete(self, gist, fs_remove=True):
         gist = self._get_gist(gist)
-
         try:
             self.sa.delete(gist)
             if fs_remove:
                 self.__delete_gist(gist)
             else:
                 log.debug('skipping removal from filesystem')
-
         except Exception:
             log.error(traceback.format_exc())
             raise

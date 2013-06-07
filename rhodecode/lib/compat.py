@@ -25,12 +25,17 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import functools
+import importlib
 from rhodecode import __py_version__, is_windows
 
 #==============================================================================
 # json
 #==============================================================================
 from rhodecode.lib.ext_json import json
+
+# alias for formatted json
+formatted_json = functools.partial(json.dumps, indent=4, sort_keys=True)
 
 if __py_version__ >= (2, 7):
     import unittest

@@ -1,7 +1,7 @@
 import functools
 from rhodecode.tests import *
 
-from rhodecode.model.repos_group import ReposGroupModel
+from rhodecode.model.repos_group import RepoGroupModel
 from rhodecode.model.db import RepoGroup, Repository, User
 
 from rhodecode.model.meta import Session
@@ -23,7 +23,7 @@ def permissions_setup_func(group_name='g0', perm='group.read', recursive=True):
     if not repos_group:
         raise Exception('Cannot get group %s' % group_name)
     perms_updates = [[test_u1_id, perm, 'user']]
-    ReposGroupModel()._update_permissions(repos_group,
+    RepoGroupModel()._update_permissions(repos_group,
                                           perms_updates=perms_updates,
                                           recursive=recursive,
                                           check_perms=False)

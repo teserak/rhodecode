@@ -26,8 +26,6 @@
 import logging
 import traceback
 import formencode
-import pkg_resources
-import platform
 
 from sqlalchemy import func
 from formencode import htmlfill
@@ -41,8 +39,7 @@ from rhodecode.lib.auth import LoginRequired, HasPermissionAllDecorator, \
     HasReposGroupPermissionAll, HasReposGroupPermissionAny, AuthUser
 from rhodecode.lib.base import BaseController, render
 from rhodecode.lib.celerylib import tasks, run_task
-from rhodecode.lib.utils import repo2db_mapper, set_rhodecode_config, \
-    check_git_version
+from rhodecode.lib.utils import repo2db_mapper, set_rhodecode_config
 from rhodecode.model.db import RhodeCodeUi, Repository, RepoGroup, \
     RhodeCodeSetting, PullRequest, PullRequestReviewers
 from rhodecode.model.forms import UserForm, ApplicationSettingsForm, \
@@ -68,12 +65,9 @@ class SettingsController(BaseController):
     @LoginRequired()
     def __before__(self):
         super(SettingsController, self).__before__()
-        c.modules = sorted([(p.project_name, p.version)
-                            for p in pkg_resources.working_set]
-                           + [('git', check_git_version())],
-                           key=lambda k: k[0].lower())
-        c.py_version = platform.python_version()
-        c.platform = platform.platform()
+        server_info = RhodeCodeSetting.get_server_info()
+        for key, val in server_info.iteritems():
+            setattr(c, key, val)
 
     @HasPermissionAllDecorator('hg.admin')
     def index(self, format='html'):
@@ -150,16 +144,16 @@ class SettingsController(BaseController):
                 )
 
             try:
-                sett1 = RhodeCodeSetting.get_by_name_or_create('title')
-                sett1.app_settings_value = form_result['rhodecode_title']
+                sett1 = RhodeCodeSetting.get_by_name_or_create('title',
+                                            form_result['rhodecode_title'])
                 Session().add(sett1)
 
-                sett2 = RhodeCodeSetting.get_by_name_or_create('realm')
-                sett2.app_settings_value = form_result['rhodecode_realm']
+                sett2 = RhodeCodeSetting.get_by_name_or_create('realm',
+                                            form_result['rhodecode_realm'])
                 Session().add(sett2)
 
-                sett3 = RhodeCodeSetting.get_by_name_or_create('ga_code')
-                sett3.app_settings_value = form_result['rhodecode_ga_code']
+                sett3 = RhodeCodeSetting.get_by_name_or_create('ga_code',
+                                            form_result['rhodecode_ga_code'])
                 Session().add(sett3)
 
                 Session().commit()
@@ -187,25 +181,28 @@ class SettingsController(BaseController):
                 )
 
             try:
-                #TODO: rewrite this to something less ugly
-                sett1 = RhodeCodeSetting.get_by_name_or_create('show_public_icon')
-                sett1.app_settings_value = \
-                    form_result['rhodecode_show_public_icon']
+                sett1 = RhodeCodeSetting.get_by_name_or_create(
+                                    'show_public_icon',
+                                    form_result['rhodecode_show_public_icon'],
+                                    'bool')
                 Session().add(sett1)
 
-                sett2 = RhodeCodeSetting.get_by_name_or_create('show_private_icon')
-                sett2.app_settings_value = \
-                    form_result['rhodecode_show_private_icon']
+                sett2 = RhodeCodeSetting.get_by_name_or_create(
+                                    'show_private_icon',
+                                    form_result['rhodecode_show_private_icon'],
+                                    'bool')
                 Session().add(sett2)
 
-                sett3 = RhodeCodeSetting.get_by_name_or_create('stylify_metatags')
-                sett3.app_settings_value = \
-                    form_result['rhodecode_stylify_metatags']
+                sett3 = RhodeCodeSetting.get_by_name_or_create(
+                                    'stylify_metatags',
+                                    form_result['rhodecode_stylify_metatags'],
+                                    'bool')
                 Session().add(sett3)
 
-                sett4 = RhodeCodeSetting.get_by_name_or_create('repository_fields')
-                sett4.app_settings_value = \
-                    form_result['rhodecode_repository_fields']
+                sett4 = RhodeCodeSetting.get_by_name_or_create(
+                                    'repository_fields',
+                                    form_result['rhodecode_repository_fields'],
+                                    'bool')
                 Session().add(sett4)
 
                 sett5 = RhodeCodeSetting.get_by_name_or_create('dashboard_items')
@@ -411,11 +408,12 @@ class SettingsController(BaseController):
         c.user = User.get(self.rhodecode_user.user_id)
         c.perm_user = AuthUser(user_id=self.rhodecode_user.user_id,
                                ip_addr=self.ip_addr)
-        c.ldap_dn = c.user.ldap_dn
+        c.extern_type = c.user.extern_type
+        c.extern_name = c.user.extern_name
 
-        if c.user.username == 'default':
+        if c.user.username == User.DEFAULT_USER:
             h.flash(_("You can't edit this user since it's"
-              " crucial for entire application"), category='warning')
+                      " crucial for entire application"), category='warning')
             return redirect(url('users'))
 
         #json used to render the grid
@@ -444,7 +442,9 @@ class SettingsController(BaseController):
         c.user = User.get(self.rhodecode_user.user_id)
         c.perm_user = AuthUser(user_id=self.rhodecode_user.user_id,
                                ip_addr=self.ip_addr)
-        c.ldap_dn = c.user.ldap_dn
+        c.extern_type = c.user.extern_type
+        c.extern_name = c.user.extern_name
+
         email = self.rhodecode_user.email
         _form = UserForm(edit=True,
                          old_data={'user_id': uid, 'email': email})()
@@ -452,7 +452,7 @@ class SettingsController(BaseController):
         try:
             form_result = _form.to_python(dict(request.POST))
             skip_attrs = ['admin', 'active']  # skip attr for my account
-            if c.ldap_dn:
+            if c.extern_name:
                 #forbid updating username for ldap accounts
                 skip_attrs.append('username')
             UserModel().update(uid, form_result, skip_attrs=skip_attrs)

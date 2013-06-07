@@ -126,8 +126,10 @@ class TestAdminSettingsController(TestController):
                            ('lastname', 'new_username'),
                            ('admin', True),
                            ('admin', False),
-                           ('ldap_dn', 'test'),
-                           ('ldap_dn', None),
+                           ('extern_type', 'ldap'),
+                           ('extern_type', None),
+                           ('extern_name', 'test'),
+                           ('extern_name', None),
                            ('active', False),
                            ('active', True),
                            ('email', 'some@email.com'),
@@ -159,9 +161,9 @@ class TestAdminSettingsController(TestController):
             params['last_login'] = updated_params['last_login']
             if name == 'email':
                 params['emails'] = [expected]
-            if name == 'ldap_dn':
+            if name in ['extern_type', 'extern_name']:
                 #cannot update this via form
-                params['ldap_dn'] = None
+                params[name] = None
             if name == 'active':
                 #my account cannot deactivate account
                 params['active'] = True

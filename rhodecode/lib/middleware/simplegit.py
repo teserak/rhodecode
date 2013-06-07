@@ -31,8 +31,6 @@ import traceback
 
 from dulwich import server as dulserver
 from dulwich.web import LimitedInputFilter, GunzipFilter
-from rhodecode.lib.exceptions import HTTPLockedRC
-from rhodecode.lib.hooks import pre_pull
 
 
 class SimpleGitUploadPackHandler(dulserver.UploadPackHandler):
@@ -78,13 +76,15 @@ from paste.httpheaders import REMOTE_USER, AUTH_TYPE
 from webob.exc import HTTPNotFound, HTTPForbidden, HTTPInternalServerError, \
     HTTPBadRequest, HTTPNotAcceptable
 
+from rhodecode.model.db import User, RhodeCodeUi, RhodeCodeSetting
 from rhodecode.lib.utils2 import safe_str, fix_PATH, get_server_url,\
     _set_extras
 from rhodecode.lib.base import BaseVCSController
-from rhodecode.lib.auth import get_container_username
 from rhodecode.lib.utils import is_valid_repo, make_ui
 from rhodecode.lib.compat import json
-from rhodecode.model.db import User, RhodeCodeUi
+from rhodecode.lib.exceptions import HTTPLockedRC
+from rhodecode.lib.hooks import pre_pull
+from rhodecode.lib import auth_modules
 
 log = logging.getLogger(__name__)
 
@@ -149,13 +149,12 @@ class SimpleGit(BaseVCSController):
                 if not anonymous_user.active:
                     log.debug('Anonymous access is disabled, running '
                               'authentication')
+                username = None
                 #==============================================================
                 # DEFAULT PERM FAILED OR ANONYMOUS ACCESS IS DISABLED SO WE
                 # NEED TO AUTHENTICATE AND ASK FOR AUTH USER PERMISSIONS
                 #==============================================================
 
-                # Attempting to retrieve username from the container
-                username = get_container_username(environ, self.config)
 
                 # If not authenticated by the container, running basic auth
                 if not username:

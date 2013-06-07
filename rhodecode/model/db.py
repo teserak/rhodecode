@@ -30,6 +30,7 @@ import datetime
 import traceback
 import hashlib
 import collections
+import functools
 
 from sqlalchemy import *
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -47,7 +48,8 @@ from rhodecode.lib.vcs.utils.lazy import LazyProperty
 from rhodecode.lib.vcs.backends.base import EmptyChangeset
 
 from rhodecode.lib.utils2 import str2bool, safe_str, get_changeset_safe, \
-    safe_unicode, remove_suffix, remove_prefix, time_to_datetime, _set_extras
+    safe_unicode, remove_suffix, remove_prefix, time_to_datetime, _set_extras,\
+    aslist
 from rhodecode.lib.compat import json
 from rhodecode.lib.caching_query import FromCache
 
@@ -151,19 +153,27 @@ class BaseModel(object):
 
 
 class RhodeCodeSetting(Base, BaseModel):
+    SETTINGS_TYPES = {
+        'str': safe_str,
+        'unicode': safe_unicode,
+        'bool': str2bool,
+        'list': functools.partial(aslist, sep=',')
+    }
     __tablename__ = 'rhodecode_settings'
     __table_args__ = (
         UniqueConstraint('app_settings_name'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'}
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True}
     )
     app_settings_id = Column("app_settings_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
     app_settings_name = Column("app_settings_name", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
     _app_settings_value = Column("app_settings_value", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
+    _app_settings_type = Column("app_settings_type", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
 
-    def __init__(self, k='', v=''):
-        self.app_settings_name = k
-        self.app_settings_value = v
+    def __init__(self, key='', val='', type='unicode'):
+        self.app_settings_name = key
+        self.app_settings_value = val
+        self.app_settings_type = type
 
     @validates('_app_settings_value')
     def validate_settings_value(self, key, val):
@@ -173,13 +183,9 @@ class RhodeCodeSetting(Base, BaseModel):
     @hybrid_property
     def app_settings_value(self):
         v = self._app_settings_value
-        if self.app_settings_name in ["ldap_active",
-                                      "default_repo_enable_statistics",
-                                      "default_repo_enable_locking",
-                                      "default_repo_private",
-                                      "default_repo_enable_downloads"]:
-            v = str2bool(v)
-        return v
+        _type = self.app_settings_type
+        converter = self.SETTINGS_TYPES.get(_type) or self.SETTINGS_TYPES['unicode']
+        return converter(v)
 
     @app_settings_value.setter
     def app_settings_value(self, val):
@@ -190,10 +196,21 @@ class RhodeCodeSetting(Base, BaseModel):
         """
         self._app_settings_value = safe_unicode(val)
 
+    @hybrid_property
+    def app_settings_type(self):
+        return self._app_settings_type
+
+    @app_settings_type.setter
+    def app_settings_type(self, val):
+        if val not in self.SETTINGS_TYPES:
+            raise Exception('type must be one of %s got %s'
+                            % (self.SETTINGS_TYPES.keys(), val))
+        self._app_settings_type = val
+
     def __unicode__(self):
-        return u"<%s('%s:%s')>" % (
+        return u"<%s('%s:%s[%s]')>" % (
             self.__class__.__name__,
-            self.app_settings_name, self.app_settings_value
+            self.app_settings_name, self.app_settings_value, self.app_settings_type
         )
 
     @classmethod
@@ -202,10 +219,10 @@ class RhodeCodeSetting(Base, BaseModel):
             .filter(cls.app_settings_name == key).scalar()
 
     @classmethod
-    def get_by_name_or_create(cls, key):
+    def get_by_name_or_create(cls, key, val='', type='unicode'):
         res = cls.get_by_name(key)
         if not res:
-            res = cls(key)
+            res = cls(key, val, type)
         return res
 
     @classmethod
@@ -226,9 +243,14 @@ class RhodeCodeSetting(Base, BaseModel):
         return settings
 
     @classmethod
-    def get_ldap_settings(cls, cache=False):
+    def get_auth_plugins(cls, cache=False):
+        auth_plugins = cls.get_by_name("auth_plugins").app_settings_value
+        return auth_plugins
+
+    @classmethod
+    def get_auth_settings(cls, cache=False):
         ret = cls.query()\
-                .filter(cls.app_settings_name.startswith('ldap_')).all()
+                .filter(cls.app_settings_name.startswith('auth_')).all()
         fd = {}
         for row in ret:
             fd.update({row.app_settings_name: row.app_settings_value})
@@ -248,13 +270,29 @@ class RhodeCodeSetting(Base, BaseModel):
 
         return fd
 
+    @classmethod
+    def get_server_info(cls):
+        import pkg_resources
+        import platform
+        import rhodecode
+        from rhodecode.lib.utils import check_git_version
+        mods = [(p.project_name, p.version) for p in pkg_resources.working_set]
+        mods += [('git', str(check_git_version()))]
+        info = {
+            'modules': sorted(mods, key=lambda k: k[0].lower()),
+            'py_version': platform.python_version(),
+            'platform': platform.platform(),
+            'rhodecode_version': rhodecode.__version__
+        }
+        return info
+
 
 class RhodeCodeUi(Base, BaseModel):
     __tablename__ = 'rhodecode_ui'
     __table_args__ = (
         UniqueConstraint('ui_key'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'}
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True}
     )
 
     HOOK_UPDATE = 'changegroup.update'
@@ -322,7 +360,7 @@ class User(Base, BaseModel):
         Index('u_username_idx', 'username'),
         Index('u_email_idx', 'email'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'}
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True}
     )
     DEFAULT_USER = 'default'
 
@@ -335,7 +373,8 @@ class User(Base, BaseModel):
     lastname = Column("lastname", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
     _email = Column("email", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
     last_login = Column("last_login", DateTime(timezone=False), nullable=True, unique=None, default=None)
-    ldap_dn = Column("ldap_dn", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
+    extern_type = Column("extern_type", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
+    extern_name = Column("extern_name", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
     api_key = Column("api_key", String(255, convert_unicode=False, assert_unicode=None), nullable=True, unique=None, default=None)
     inherit_default_permissions = Column("inherit_default_permissions", Boolean(), nullable=False, unique=None, default=True)
 
@@ -526,7 +565,8 @@ class User(Base, BaseModel):
             api_key=user.api_key,
             active=user.active,
             admin=user.admin,
-            ldap_dn=user.ldap_dn,
+            extern_type=user.extern_type,
+            extern_name=user.extern_name,
             last_login=user.last_login,
             ip_addresses=user.ip_addresses
         )
@@ -549,7 +589,7 @@ class UserEmailMap(Base, BaseModel):
         Index('uem_email_idx', 'email'),
         UniqueConstraint('email'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'}
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True}
     )
     __mapper_args__ = {}
 
@@ -580,7 +620,7 @@ class UserIpMap(Base, BaseModel):
     __table_args__ = (
         UniqueConstraint('user_id', 'ip_addr'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'}
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True}
     )
     __mapper_args__ = {}
 
@@ -607,7 +647,7 @@ class UserLog(Base, BaseModel):
     __tablename__ = 'user_logs'
     __table_args__ = (
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'},
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True},
     )
     user_log_id = Column("user_log_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
     user_id = Column("user_id", Integer(), ForeignKey('users.user_id'), nullable=True, unique=None, default=None)
@@ -635,7 +675,7 @@ class UserGroup(Base, BaseModel):
     __tablename__ = 'users_groups'
     __table_args__ = (
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'},
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True},
     )
 
     users_group_id = Column("users_group_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
@@ -681,14 +721,21 @@ class UserGroup(Base, BaseModel):
                                     "get_users_group_%s" % users_group_id))
         return users_group.get(users_group_id)
 
-    def get_api_data(self):
-        users_group = self
+    def get_api_data(self, with_members=True):
+        user_group = self
 
         data = dict(
-            users_group_id=users_group.users_group_id,
-            group_name=users_group.users_group_name,
-            active=users_group.users_group_active,
+            users_group_id=user_group.users_group_id,
+            group_name=user_group.users_group_name,
+            active=user_group.users_group_active,
+            owner=user_group.user.username,
         )
+        if with_members:
+            members = []
+            for user in user_group.members:
+                user = user.user
+                members.append(user.get_api_data())
+            data['members'] = members
 
         return data
 
@@ -697,7 +744,7 @@ class UserGroupMember(Base, BaseModel):
     __tablename__ = 'users_groups_members'
     __table_args__ = (
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'},
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True},
     )
 
     users_group_member_id = Column("users_group_member_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
@@ -717,7 +764,7 @@ class RepositoryField(Base, BaseModel):
     __table_args__ = (
         UniqueConstraint('repository_id', 'field_key'),  # no-multi field
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'},
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True},
     )
     PREFIX = 'ex_'  # prefix used in form to not conflict with already existing fields
 
@@ -756,7 +803,7 @@ class Repository(Base, BaseModel):
         UniqueConstraint('repo_name'),
         Index('r_repo_name_idx', 'repo_name'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'},
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True},
     )
 
     repo_id = Column("repo_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
@@ -1240,7 +1287,7 @@ class RepoGroup(Base, BaseModel):
         UniqueConstraint('group_name', 'group_parent_id'),
         CheckConstraint('group_id != group_parent_id'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'},
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True},
     )
     __mapper_args__ = {'order_by': 'group_name'}
 
@@ -1399,13 +1446,29 @@ class RepoGroup(Base, BaseModel):
                        self.parent_group else [])
         return RepoGroup.url_sep().join(path_prefix + [group_name])
 
+    def get_api_data(self):
+        """
+        Common function for generating repo api data
+
+        """
+        group = self
+        data = dict(
+            group_id=group.group_id,
+            group_name=group.group_name,
+            group_description=group.group_description,
+            parent_group=group.parent_group.group_name if group.parent_group else None,
+            repositories=[x.repo_name for x in group.repositories],
+            owner=group.user.username
+        )
+        return data
+
 
 class Permission(Base, BaseModel):
     __tablename__ = 'permissions'
     __table_args__ = (
         Index('p_perm_name_idx', 'permission_name'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'},
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True},
     )
     PERMS = [
         ('hg.admin', _('RhodeCode Administrator')),
@@ -1533,7 +1596,7 @@ class UserRepoToPerm(Base, BaseModel):
     __table_args__ = (
         UniqueConstraint('user_id', 'repository_id', 'permission_id'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'}
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True}
     )
     repo_to_perm_id = Column("repo_to_perm_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
     user_id = Column("user_id", Integer(), ForeignKey('users.user_id'), nullable=False, unique=None, default=None)
@@ -1562,7 +1625,7 @@ class UserUserGroupToPerm(Base, BaseModel):
     __table_args__ = (
         UniqueConstraint('user_id', 'user_group_id', 'permission_id'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'}
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True}
     )
     user_user_group_to_perm_id = Column("user_user_group_to_perm_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
     user_id = Column("user_id", Integer(), ForeignKey('users.user_id'), nullable=False, unique=None, default=None)
@@ -1591,7 +1654,7 @@ class UserToPerm(Base, BaseModel):
     __table_args__ = (
         UniqueConstraint('user_id', 'permission_id'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'}
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True}
     )
     user_to_perm_id = Column("user_to_perm_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
     user_id = Column("user_id", Integer(), ForeignKey('users.user_id'), nullable=False, unique=None, default=None)
@@ -1609,7 +1672,7 @@ class UserGroupRepoToPerm(Base, BaseModel):
     __table_args__ = (
         UniqueConstraint('repository_id', 'users_group_id', 'permission_id'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'}
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True}
     )
     users_group_to_perm_id = Column("users_group_to_perm_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
     users_group_id = Column("users_group_id", Integer(), ForeignKey('users_groups.users_group_id'), nullable=False, unique=None, default=None)
@@ -1639,7 +1702,7 @@ class UserGroupUserGroupToPerm(Base, BaseModel):
         UniqueConstraint('target_user_group_id', 'user_group_id', 'permission_id'),
         CheckConstraint('target_user_group_id != user_group_id'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'}
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True}
     )
     user_group_user_group_to_perm_id = Column("user_group_user_group_to_perm_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
     target_user_group_id = Column("target_user_group_id", Integer(), ForeignKey('users_groups.users_group_id'), nullable=False, unique=None, default=None)
@@ -1668,7 +1731,7 @@ class UserGroupToPerm(Base, BaseModel):
     __table_args__ = (
         UniqueConstraint('users_group_id', 'permission_id',),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'}
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True}
     )
     users_group_to_perm_id = Column("users_group_to_perm_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
     users_group_id = Column("users_group_id", Integer(), ForeignKey('users_groups.users_group_id'), nullable=False, unique=None, default=None)
@@ -1683,7 +1746,7 @@ class UserRepoGroupToPerm(Base, BaseModel):
     __table_args__ = (
         UniqueConstraint('user_id', 'group_id', 'permission_id'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'}
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True}
     )
 
     group_to_perm_id = Column("group_to_perm_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
@@ -1701,7 +1764,7 @@ class UserGroupRepoGroupToPerm(Base, BaseModel):
     __table_args__ = (
         UniqueConstraint('users_group_id', 'group_id'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'}
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True}
     )
 
     users_group_repo_group_to_perm_id = Column("users_group_repo_group_to_perm_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
@@ -1719,7 +1782,7 @@ class Statistics(Base, BaseModel):
     __table_args__ = (
          UniqueConstraint('repository_id'),
          {'extend_existing': True, 'mysql_engine': 'InnoDB',
-          'mysql_charset': 'utf8'}
+          'mysql_charset': 'utf8', 'sqlite_autoincrement': True}
     )
     stat_id = Column("stat_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
     repository_id = Column("repository_id", Integer(), ForeignKey('repositories.repo_id'), nullable=False, unique=True, default=None)
@@ -1737,7 +1800,7 @@ class UserFollowing(Base, BaseModel):
         UniqueConstraint('user_id', 'follows_repository_id'),
         UniqueConstraint('user_id', 'follows_user_id'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'}
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True}
     )
 
     user_following_id = Column("user_following_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
@@ -1762,7 +1825,7 @@ class CacheInvalidation(Base, BaseModel):
         UniqueConstraint('cache_key'),
         Index('key_idx', 'cache_key'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'},
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True},
     )
     # cache_id, not used
     cache_id = Column("cache_id", Integer(), nullable=False, unique=True, default=None, primary_key=True)
@@ -1884,7 +1947,7 @@ class ChangesetComment(Base, BaseModel):
     __table_args__ = (
         Index('cc_revision_idx', 'revision'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'},
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True},
     )
     comment_id = Column('comment_id', Integer(), nullable=False, primary_key=True)
     repo_id = Column('repo_id', Integer(), ForeignKey('repositories.repo_id'), nullable=False)
@@ -1928,7 +1991,7 @@ class ChangesetStatus(Base, BaseModel):
         Index('cs_version_idx', 'version'),
         UniqueConstraint('repo_id', 'revision', 'version'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'}
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True}
     )
     STATUS_NOT_REVIEWED = DEFAULT = 'not_reviewed'
     STATUS_APPROVED = 'approved'
@@ -1976,7 +2039,7 @@ class PullRequest(Base, BaseModel):
     __tablename__ = 'pull_requests'
     __table_args__ = (
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'},
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True},
     )
 
     STATUS_NEW = u'new'
@@ -2030,7 +2093,7 @@ class PullRequest(Base, BaseModel):
 
     def __json__(self):
         return dict(
-          revisions=self.revisions
+            revisions=self.revisions
         )
 
 
@@ -2038,7 +2101,7 @@ class PullRequestReviewers(Base, BaseModel):
     __tablename__ = 'pull_request_reviewers'
     __table_args__ = (
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'},
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True},
     )
 
     def __init__(self, user=None, pull_request=None):
@@ -2058,7 +2121,7 @@ class Notification(Base, BaseModel):
     __table_args__ = (
         Index('notification_type_idx', 'type'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'},
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True},
     )
 
     TYPE_CHANGESET_COMMENT = u'cs_comment'
@@ -2115,7 +2178,7 @@ class UserNotification(Base, BaseModel):
     __table_args__ = (
         UniqueConstraint('user_id', 'notification_id'),
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'}
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True}
     )
     user_id = Column('user_id', Integer(), ForeignKey('users.user_id'), primary_key=True)
     notification_id = Column("notification_id", Integer(), ForeignKey('notifications.notification_id'), primary_key=True)
@@ -2221,7 +2284,7 @@ class DbMigrateVersion(Base, BaseModel):
     __tablename__ = 'db_migrate_version'
     __table_args__ = (
         {'extend_existing': True, 'mysql_engine': 'InnoDB',
-         'mysql_charset': 'utf8'},
+         'mysql_charset': 'utf8', 'sqlite_autoincrement': True},
     )
     repository_id = Column('repository_id', String(250), primary_key=True)
     repository_path = Column('repository_path', Text)

@@ -84,22 +84,20 @@ will be available.
 
 To get started quickly simply run::
 
-  rhodecode-api _create_config --apikey=<youapikey> --apihost=<rhodecode host>
+  rhodecode-api --save-config --apikey=<youapikey> --apihost=<rhodecode host>
 
-This will create a file named .config in the directory you executed it storing
+This will create a file named .config in users HOME directory, storing
 json config file with credentials. You can skip this step and always provide
 both of the arguments to be able to communicate with server
 
 
 after that simply run any api command for example get_repo::
 
- rhodecode-api get_repo
+    rhodecode-api get_repo
 
- calling {"api_key": "<apikey>", "id": 75, "args": {}, "method": "get_repo"} to http://127.0.0.1:5000
- rhodecode said:
- {'error': 'Missing non optional `repoid` arg in JSON DATA',
-  'id': 75,
-  'result': None}
+    Calling method get_repo => http://127.0.0.1:5000
+    Server response
+    "Missing non optional `repoid` arg in JSON DATA"
 
 Ups looks like we forgot to add an argument
 
@@ -107,17 +105,38 @@ Let's try again now giving the repoid as parameters::
 
     rhodecode-api get_repo repoid:rhodecode
 
-    calling {"api_key": "<apikey>", "id": 39, "args": {"repoid": "rhodecode"}, "method": "get_repo"} to http://127.0.0.1:5000
-    rhodecode said:
-    {'error': None,
-     'id': 39,
-     'result': <json data...>}
+    Calling method get_repo => http://127.0.0.1:5000
+    Server response
+    {
+        <json data>
+    }
 
+Optionally user can specify `--format` param to change the output to pure JSON::
+
+    rhodecode-api --format=json get_repo repoid:rhodecode
+
+In such case only output that this function shows is pure JSON, we can use that
+and pip output to some json formatter::
+
+    rhodecode-api --format=json get_repo repoid:rhodecode | python -m json.tool
 
 
 API METHODS
 +++++++++++
 
+Each method by default required following arguments::
+
+    id :      "<id_for_response>"
+    api_key : "<api_key>"
+    method :  "<method name>"
+    args :    {}
+
+Use each **param** from docs and put it in args, Optional parameters
+are not required in args::
+
+    args: {"repoid": "rhodecode"}
+
+    --- API DEFS ---
 
 pull
 ----
@@ -288,7 +307,7 @@ OUTPUT::
                 "emails":       "<list_of_all_additional_emails>",
                 "ip_addresses": "<list_of_ip_addresses_for_user>",
                 "active" :      "<bool>",
-                "admin" :       "<bool>",
+                "admin" :       "<bool>",
                 "ldap_dn" :     "<ldap_dn>",
                 "last_login":   "<last_login>",
                 "permissions": {
@@ -331,7 +350,7 @@ OUTPUT::
                 "emails":       "<list_of_all_additional_emails>",
                 "ip_addresses": "<list_of_ip_addresses_for_user>",
                 "active" :      "<bool>",
-                "admin" :       "<bool>",
+                "admin" :       "<bool>",
                 "ldap_dn" :     "<ldap_dn>",
                 "last_login":   "<last_login>",
               },
@@ -376,7 +395,7 @@ OUTPUT::
                 "email" :    "<email>",
                 "emails":    "<list_of_all_additional_emails>",
                 "active" :   "<bool>",
-                "admin" :    "<bool>",
+                "admin" :    "<bool>",
                 "ldap_dn" :  "<ldap_dn>",
                 "last_login": "<last_login>",
               },
@@ -422,7 +441,7 @@ OUTPUT::
                 "email" :    "<email>",
                 "emails":    "<list_of_all_additional_emails>",
                 "active" :   "<bool>",
-                "admin" :    "<bool>",
+                "admin" :    "<bool>",
                 "ldap_dn" :  "<ldap_dn>",
                 "last_login": "<last_login>",
               },
@@ -491,7 +510,7 @@ OUTPUT::
                                 "email" :    "<email>",
                                 "emails":    "<list_of_all_additional_emails>",
                                 "active" :   "<bool>",
-                                "admin" :    "<bool>",
+                                "admin" :    "<bool>",
                                 "ldap_dn" :  "<ldap_dn>",
                                 "last_login": "<last_login>",
                               },
@@ -674,7 +693,7 @@ OUTPUT::
                                     "email" :      "<email>",
                                     "emails":      "<list_of_all_additional_emails>",
                                     "active" :     "<bool>",
-                                    "admin" :      "<bool>",
+                                    "admin" :      "<bool>",
                                     "ldap_dn" :    "<ldap_dn>",
                                     "last_login":  "<last_login>",
                                     "permission" : "repository.(read|write|admin)"
@@ -700,7 +719,7 @@ OUTPUT::
                                     "emails":       "<list_of_all_additional_emails>",
                                     "ip_addresses": "<list_of_ip_addresses_for_user>",
                                     "active" :      "<bool>",
-                                    "admin" :       "<bool>",
+                                    "admin" :       "<bool>",
                                     "ldap_dn" :     "<ldap_dn>",
                                     "last_login":   "<last_login>",
                                   },

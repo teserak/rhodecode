@@ -101,7 +101,8 @@ class UsersController(BaseController):
                 "last_login_raw": datetime_to_time(user.last_login),
                 "active": h.boolicon(user.active),
                 "admin": h.boolicon(user.admin),
-                "ldap": h.boolicon(bool(user.ldap_dn)),
+                "extern_type": user.extern_type if user.extern_type else "RhodeCode",
+                "extern_name": user.extern_name,
                 "action": user_actions(user.user_id, user.username),
             })
 
@@ -158,7 +159,8 @@ class UsersController(BaseController):
         # url('user', id=ID)
         user_model = UserModel()
         c.user = user_model.get(id)
-        c.ldap_dn = c.user.ldap_dn
+        c.extern_type = c.user.extern_type
+        c.extern_name = c.user.extern_name
         c.perm_user = AuthUser(user_id=id, ip_addr=self.ip_addr)
         _form = UserForm(edit=True, old_data={'user_id': id,
                                               'email': c.user.email})()
@@ -166,8 +168,8 @@ class UsersController(BaseController):
         try:
             form_result = _form.to_python(dict(request.POST))
             skip_attrs = []
-            if c.ldap_dn:
-                #forbid updating username for ldap accounts
+            if c.extern_type:
+                #forbid updating username for external accounts
                 skip_attrs = ['username']
             user_model.update(id, form_result, skip_attrs=skip_attrs)
             usr = form_result['username']
@@ -230,7 +232,7 @@ class UsersController(BaseController):
         # url('edit_user', id=ID)
         c.user = User.get_or_404(id)
 
-        if c.user.username == 'default':
+        if c.user.username == User.DEFAULT_USER:
             h.flash(_("You can't edit this user"), category='warning')
             return redirect(url('users'))
 
@@ -243,7 +245,8 @@ class UsersController(BaseController):
         c.user_ip_map = UserIpMap.query()\
                         .filter(UserIpMap.user == c.user).all()
         umodel = UserModel()
-        c.ldap_dn = c.user.ldap_dn
+        c.extern_type = c.user.extern_type
+        c.extern_name = c.user.extern_name
         defaults = c.user.get_dict()
         defaults.update({
          'create_repo_perm': umodel.has_perm(c.user, 'hg.create.repository'),

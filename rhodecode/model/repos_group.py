@@ -38,7 +38,7 @@ from rhodecode.model.db import RepoGroup, RhodeCodeUi, UserRepoGroupToPerm, \
 log = logging.getLogger(__name__)
 
 
-class ReposGroupModel(BaseModel):
+class RepoGroupModel(BaseModel):
 
     cls = RepoGroup
 
@@ -205,7 +205,7 @@ class ReposGroupModel(BaseModel):
                 # we set group permission but we have to switch to repo
                 # permission
                 perm = perm.replace('group.', 'repository.')
-                RepoModel().grant_users_group_permission(
+                RepoModel().grant_user_group_permission(
                     repo=obj, group_name=users_group, perm=perm
                 )
         updates = []
@@ -321,16 +321,16 @@ class ReposGroupModel(BaseModel):
 
             if isinstance(el, RepoGroup):
                 if obj_type == 'user':
-                    ReposGroupModel().revoke_user_permission(el, user=obj)
+                    RepoGroupModel().revoke_user_permission(el, user=obj)
                 elif obj_type == 'users_group':
-                    ReposGroupModel().revoke_users_group_permission(el, group_name=obj)
+                    RepoGroupModel().revoke_users_group_permission(el, group_name=obj)
                 else:
                     raise Exception('undefined object type %s' % obj_type)
             elif isinstance(el, Repository):
                 if obj_type == 'user':
                     RepoModel().revoke_user_permission(el, user=obj)
                 elif obj_type == 'users_group':
-                    RepoModel().revoke_users_group_permission(el, group_name=obj)
+                    RepoModel().revoke_user_group_permission(el, group_name=obj)
                 else:
                     raise Exception('undefined object type %s' % obj_type)
 

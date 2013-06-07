@@ -4,7 +4,7 @@ from rhodecode.tests.fixture import Fixture
 from rhodecode.model.meta import Session
 from rhodecode.model.db import User, Repository
 from rhodecode.model.repo import RepoModel
-from rhodecode.model.repos_group import ReposGroupModel
+from rhodecode.model.repos_group import RepoGroupModel
 
 
 fixture = Fixture()
@@ -79,5 +79,5 @@ class TestHomeController(TestController):
             response.mustcontain("gr1/repo_in_group")
         finally:
             RepoModel().delete('gr1/repo_in_group')
-            ReposGroupModel().delete(repos_group='gr1', force_delete=True)
+            RepoGroupModel().delete(repos_group='gr1', force_delete=True)
             Session().commit()

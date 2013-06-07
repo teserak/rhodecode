@@ -58,6 +58,7 @@ if sys.version_info < (2, 6):
     requirements.append("pysqlite")
 
 if sys.version_info < (2, 7):
+    requirements.append("importlib==1.0.1")
     requirements.append("unittest2")
     requirements.append("argparse")
 

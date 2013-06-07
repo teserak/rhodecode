@@ -130,8 +130,9 @@ class BaseModel(object):
         return self._get_instance(Permission, permission,
                                   callback=Permission.get_by_key)
 
-    def get_all(self):
+    @classmethod
+    def get_all(cls):
         """
         Returns all instances of what is defined in `cls` class variable
         """
-        return self.cls.getAll()
+        return cls.cls.getAll()

@@ -35,15 +35,14 @@ import time
 from paste.response import replace_header
 from pylons.controllers import WSGIController
 
-from webob.exc import HTTPNotFound, HTTPForbidden, HTTPInternalServerError, \
-HTTPBadRequest, HTTPError
+from webob.exc import HTTPError
 
 from rhodecode.model.db import User
 from rhodecode.model import meta
 from rhodecode.lib.compat import izip_longest, json
 from rhodecode.lib.auth import AuthUser
-from rhodecode.lib.base import _get_ip_addr, _get_access_path
-from rhodecode.lib.utils2 import safe_unicode
+from rhodecode.lib.base import _get_ip_addr as _get_ip, _get_access_path
+from rhodecode.lib.utils2 import safe_unicode, safe_str
 
 log = logging.getLogger('JSONRPC')
 
@@ -55,18 +54,22 @@ class JSONRPCError(BaseException):
         super(JSONRPCError, self).__init__()
 
     def __str__(self):
-        return str(self.message)
+        return safe_str(self.message)
 
 
 def jsonrpc_error(message, retid=None, code=None):
     """
     Generate a Response object with a JSON-RPC error body
+
+    :param code:
+    :param retid:
+    :param message:
     """
     from pylons.controllers.util import Response
     return Response(
-            body=json.dumps(dict(id=retid, result=None, error=message)),
-            status=code,
-            content_type='application/json'
+        body=json.dumps(dict(id=retid, result=None, error=message)),
+        status=code,
+        content_type='application/json'
     )
 
 
@@ -85,7 +88,7 @@ class JSONRPCController(WSGIController):
      """
 
     def _get_ip_addr(self, environ):
-        return _get_ip_addr(environ)
+        return _get_ip(environ)
 
     def _get_method_args(self):
         """
@@ -99,6 +102,12 @@ class JSONRPCController(WSGIController):
         Parse the request body as JSON, look up the method on the
         controller and if it exists, dispatch to it.
         """
+        try:
+            return self._handle_request(environ, start_response)
+        finally:
+            meta.Session.remove()
+
+    def _handle_request(self, environ, start_response):
         start = time.time()
         ip_addr = self.ip_addr = self._get_ip_addr(environ)
         self._req_id = None
@@ -123,7 +132,7 @@ class JSONRPCController(WSGIController):
         except ValueError, e:
             # catch JSON errors Here
             return jsonrpc_error(retid=self._req_id,
-                                 message="JSON parse error ERR:%s RAW:%r" \
+                                 message="JSON parse error ERR:%s RAW:%r"
                                  % (e, urllib.unquote_plus(raw_body)))
 
         # check AUTH based on API KEY
@@ -154,9 +163,9 @@ class JSONRPCController(WSGIController):
             auth_u = AuthUser(u.user_id, self._req_api_key, ip_addr=ip_addr)
             if not auth_u.ip_allowed:
                 return jsonrpc_error(retid=self._req_id,
-                        message='request from IP:%s not allowed' % (ip_addr))
+                        message='request from IP:%s not allowed' % (ip_addr,))
             else:
-                log.info('Access for IP:%s allowed' % (ip_addr))
+                log.info('Access for IP:%s allowed' % (ip_addr,))
 
         except Exception, e:
             return jsonrpc_error(retid=self._req_id,
@@ -206,7 +215,7 @@ class JSONRPCController(WSGIController):
 
             # skip the required param check if it's default value is
             # NotImplementedType (default_empty)
-            if (default == default_empty and arg not in self._request_params):
+            if default == default_empty and arg not in self._request_params:
                 return jsonrpc_error(
                     retid=self._req_id,
                     message=(
@@ -237,7 +246,7 @@ class JSONRPCController(WSGIController):
         replace_header(headers, 'Content-Type', 'application/json')
         start_response(status[0], headers, exc_info[0])
         log.info('IP: %s Request to %s time: %.3fs' % (
-            _get_ip_addr(environ),
+            self._get_ip_addr(environ),
             safe_unicode(_get_access_path(environ)), time.time() - start)
         )
         return output
@@ -246,24 +255,23 @@ class JSONRPCController(WSGIController):
         """
         Implement dispatch interface specified by WSGIController
         """
+        raw_response = ''
         try:
             raw_response = self._inspect_call(self._func)
             if isinstance(raw_response, HTTPError):
                 self._error = str(raw_response)
         except JSONRPCError, e:
-            self._error = str(e)
+            self._error = safe_str(e)
         except Exception, e:
-            log.error('Encountered unhandled exception: %s' \
-                      % traceback.format_exc())
+            log.error('Encountered unhandled exception: %s'
+                      % (traceback.format_exc(),))
             json_exc = JSONRPCError('Internal server error')
-            self._error = str(json_exc)
+            self._error = safe_str(json_exc)
 
         if self._error is not None:
             raw_response = None
 
-        response = dict(id=self._req_id, result=raw_response,
-                        error=self._error)
-
+        response = dict(id=self._req_id, result=raw_response, error=self._error)
         try:
             return json.dumps(response)
         except TypeError, e:
@@ -280,7 +288,7 @@ class JSONRPCController(WSGIController):
         """
         Return method named by `self._req_method` in controller if able
         """
-        log.debug('Trying to find JSON-RPC method: %s' % self._req_method)
+        log.debug('Trying to find JSON-RPC method: %s' % (self._req_method,))
         if self._req_method.startswith('_'):
             raise AttributeError("Method not allowed")
 
@@ -293,4 +301,4 @@ class JSONRPCController(WSGIController):
         if isinstance(func, types.MethodType):
             return func
         else:
-            raise AttributeError("No such method: %s" % self._req_method)
+            raise AttributeError("No such method: %s" % (self._req_method,))

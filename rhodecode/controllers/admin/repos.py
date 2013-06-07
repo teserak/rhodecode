@@ -75,7 +75,7 @@ class ReposController(BaseRepoController):
 
         repo_model = RepoModel()
         c.users_array = repo_model.get_users_js()
-        c.users_groups_array = repo_model.get_users_groups_js()
+        c.users_groups_array = repo_model.get_user_groups_js()
         choices, c.landing_revs = ScmModel().get_repo_landing_revs()
         c.landing_revs_choices = choices
 
@@ -363,7 +363,7 @@ class ReposController(BaseRepoController):
             if obj_type == 'user':
                 RepoModel().revoke_user_permission(repo=repo_name, user=obj_id)
             elif obj_type == 'user_group':
-                RepoModel().revoke_users_group_permission(
+                RepoModel().revoke_user_group_permission(
                     repo=repo_name, group_name=obj_id
                 )
             #TODO: implement this
