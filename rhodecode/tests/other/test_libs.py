@@ -177,7 +177,7 @@ class TestLibs(BaseTestCase):
             config.update(kwargs)
             return config
 
-        class fake_url():
+        class fake_url(object):
             @classmethod
             def current(cls, *args, **kwargs):
                 return 'https://server.com'

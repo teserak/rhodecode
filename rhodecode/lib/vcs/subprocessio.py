@@ -142,7 +142,7 @@ class InputStreamChunker(Thread):
         da.set()  # for cases when done but there was no input.
 
 
-class BufferedGenerator():
+class BufferedGenerator(object):
     """
     Class behaves as a non-blocking, buffered pipe reader.
     Reads chunks of data (through a thread)

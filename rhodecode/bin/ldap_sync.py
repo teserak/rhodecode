@@ -45,7 +45,7 @@ class UserNotInGroupError(Exception):
     """ User is not a member of the target group. """
 
 
-class RhodecodeAPI():
+class RhodecodeAPI(object):
 
     def __init__(self, url, key):
         self.url = url
@@ -134,7 +134,7 @@ class RhodecodeAPI():
         return self.rhodecode_api_post("get_user", args)
 
 
-class LdapClient():
+class LdapClient(object):
 
     def __init__(self, uri, user, key, base_dn):
         self.client = ldap.initialize(uri, trace_level=0)
