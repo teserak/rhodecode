@@ -29,22 +29,21 @@ import formencode
 
 from sqlalchemy import func
 from formencode import htmlfill
-from pylons import request, session, tmpl_context as c, url, config
-from pylons.controllers.util import abort, redirect
+from pylons import request, tmpl_context as c, url, config
+from pylons.controllers.util import redirect
 from pylons.i18n.translation import _
 
 from rhodecode.lib import helpers as h
 from rhodecode.lib.auth import LoginRequired, HasPermissionAllDecorator, \
-    HasPermissionAnyDecorator, NotAnonymous, HasPermissionAny,\
-    HasReposGroupPermissionAll, HasReposGroupPermissionAny, AuthUser
+    NotAnonymous, AuthUser
 from rhodecode.lib.base import BaseController, render
 from rhodecode.lib.celerylib import tasks, run_task
 from rhodecode.lib.utils import repo2db_mapper, set_rhodecode_config
-from rhodecode.model.db import RhodeCodeUi, Repository, RepoGroup, \
-    RhodeCodeSetting, PullRequest, PullRequestReviewers
+from rhodecode.model.db import RhodeCodeUi, Repository, RhodeCodeSetting,  \
+    PullRequest, PullRequestReviewers
 from rhodecode.model.forms import UserForm, ApplicationSettingsForm, \
     ApplicationUiSettingsForm, ApplicationVisualisationForm
-from rhodecode.model.scm import ScmModel, RepoGroupList
+from rhodecode.model.scm import ScmModel
 from rhodecode.model.user import UserModel
 from rhodecode.model.repo import RepoModel
 from rhodecode.model.db import User
@@ -205,14 +204,16 @@ class SettingsController(BaseController):
                                     'bool')
                 Session().add(sett4)
 
-                sett5 = RhodeCodeSetting.get_by_name_or_create('dashboard_items')
-                sett5.app_settings_value = \
-                    form_result['rhodecode_dashboard_items']
+                sett5 = RhodeCodeSetting.get_by_name_or_create(
+                                    'dashboard_items',
+                                    form_result['rhodecode_dashboard_items'],
+                                    'int')
                 Session().add(sett5)
 
-                sett6 = RhodeCodeSetting.get_by_name_or_create('show_version')
-                sett6.app_settings_value = \
-                    form_result['rhodecode_show_version']
+                sett6 = RhodeCodeSetting.get_by_name_or_create(
+                                    'show_version',
+                                    form_result['rhodecode_show_version'],
+                                    'bool')
                 Session().add(sett6)
 
                 Session().commit()
