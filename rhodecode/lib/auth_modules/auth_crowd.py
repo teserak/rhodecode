@@ -115,14 +115,14 @@ class CrowdServer(object):
     def user_auth(self, username, password):
         """Authenticate a user against crowd. Returns brief information about
         the user."""
-        url = ("%s/rest/usermanagement/{}/authentication?username=%s"
+        url = ("%s/rest/usermanagement/%s/authentication?username=%s"
                % (self._uri, self._version, username))
         body = json.dumps({"value": password})
         return self._request(url, body)
 
     def user_groups(self, username):
         """Retrieve a list of groups to which this user belongs."""
-        url = ("%s/rest/usermanagement/{}/user/group/nested?username=%s"
+        url = ("%s/rest/usermanagement/%s/user/group/nested?username=%s"
                % (self._uri, self._version, username))
         return self._request(url)
 
