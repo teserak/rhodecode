@@ -8,7 +8,7 @@
         <td></td>
     </tr>
     ## USERS
-    %for r2p in c.repos_group.repo_group_to_perm:
+    %for r2p in c.repo_group.repo_group_to_perm:
         ##forbid revoking permission from yourself
         <tr id="id${id(r2p.user.username)}">
             %if c.rhodecode_user.user_id != r2p.user.user_id or c.rhodecode_user.is_admin:
@@ -41,7 +41,7 @@
     %endfor
 
     ## USER GROUPS
-    %for g2p in c.repos_group.users_group_to_perm:
+    %for g2p in c.repo_group.users_group_to_perm:
         <tr id="id${id(g2p.users_group.users_group_name)}">
             <td>${h.radio('g_perm_%s' % g2p.users_group.users_group_name,'group.none')}</td>
             <td>${h.radio('g_perm_%s' % g2p.users_group.users_group_name,'group.read')}</td>
@@ -91,7 +91,7 @@
 </table>
 <script type="text/javascript">
 function ajaxActionRevoke(obj_id, obj_type, field_id) {
-    url = "${h.url('delete_repo_group_perm_member', group_name=c.repos_group.group_name)}";
+    url = "${h.url('delete_repo_group_perm_member', group_name=c.repo_group.group_name)}";
     ajaxActionRevokePermission(url, obj_id, obj_type, field_id, {recursive:YUD.get('recursive').checked});
 };
 

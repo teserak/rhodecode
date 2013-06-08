@@ -2,7 +2,7 @@
 <%inherit file="/base/base.html"/>
 
 <%def name="title()">
-    ${_('Edit repository group')} ${c.repos_group.name} &middot; ${c.rhodecode_name}
+    ${_('Edit repository group')} ${c.repo_group.name} &middot; ${c.rhodecode_name}
 </%def>
 
 <%def name="breadcrumbs_links()">
@@ -10,7 +10,7 @@
     &raquo;
     ${h.link_to(_('Repository groups'),h.url('repos_groups'))}
     &raquo;
-    ${_('Edit repository group %s') % c.repos_group.name}"
+    ${_('Edit repository group %s') % c.repo_group.name}"
 </%def>
 
 <%def name="page_nav()">
@@ -24,12 +24,12 @@
         ${self.breadcrumbs()}
         <ul class="links">
           <li>
-            <span>${h.link_to(_(u'Add child group'),h.url('new_repos_group', parent_group=c.repos_group.group_id))}</span>
+            <span>${h.link_to(_(u'Add child group'),h.url('new_repos_group', parent_group=c.repo_group.group_id))}</span>
           </li>
         </ul>
     </div>
     <!-- end box / title -->
-    ${h.form(url('repos_group',group_name=c.repos_group.group_name),method='put')}
+    ${h.form(url('repos_group',group_name=c.repo_group.group_name),method='put')}
     <div class="form">
         <!-- fields -->
         <div class="fields">
@@ -80,7 +80,7 @@
     <div class="title">
         <h5>${_('Permissions')}</h5>
     </div>
-    ${h.form(url('set_repo_group_perm_member', group_name=c.repos_group.group_name),method='post')}
+    ${h.form(url('set_repo_group_perm_member', group_name=c.repo_group.group_name),method='post')}
     <div class="form">
        <div class="fields">
             <div class="field">

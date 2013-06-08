@@ -192,20 +192,20 @@ class ReposGroupsController(BaseController):
         #           method='put')
         # url('repos_group', group_name=GROUP_NAME)
 
-        c.repos_group = RepoGroupModel()._get_repo_group(group_name)
+        c.repo_group = RepoGroupModel()._get_repo_group(group_name)
         if HasPermissionAll('hg.admin')('group edit'):
             #we're global admin, we're ok and we can create TOP level groups
             allow_empty_group = True
-        elif not c.repos_group.parent_group:
+        elif not c.repo_group.parent_group:
             allow_empty_group = True
         else:
             allow_empty_group = False
         self.__load_defaults(allow_empty_group=allow_empty_group,
-                             exclude_group_ids=[c.repos_group.group_id])
+                             exclude_group_ids=[c.repo_group.group_id])
 
         repos_group_form = ReposGroupForm(
             edit=True,
-            old_data=c.repos_group.get_dict(),
+            old_data=c.repo_group.get_dict(),
             available_groups=c.repo_groups_choices,
             can_create_in_root=allow_empty_group,
         )()
@@ -244,7 +244,7 @@ class ReposGroupsController(BaseController):
         #           method='delete')
         # url('repos_group', group_name=GROUP_NAME)
 
-        gr = c.repos_group = RepoGroupModel()._get_repo_group(group_name)
+        gr = c.repo_group = RepoGroupModel()._get_repo_group(group_name)
         repos = gr.repositories.all()
         if repos:
             h.flash(_('This group contains %s repositores and cannot be '
@@ -272,7 +272,7 @@ class ReposGroupsController(BaseController):
 
     @HasReposGroupPermissionAnyDecorator('group.admin')
     def set_repo_group_perm_member(self, group_name):
-        c.repos_group = RepoGroupModel()._get_repo_group(group_name)
+        c.repo_group = RepoGroupModel()._get_repo_group(group_name)
         form_result = RepoGroupPermsForm()().to_python(request.POST)
         if not c.rhodecode_user.is_admin:
             if self._revoke_perms_on_yourself(form_result):
@@ -283,7 +283,7 @@ class ReposGroupsController(BaseController):
         # iterate over all members(if in recursive mode) of this groups and
         # set the permissions !
         # this can be potentially heavy operation
-        RepoGroupModel()._update_permissions(c.repos_group,
+        RepoGroupModel()._update_permissions(c.repo_group,
                                               form_result['perms_new'],
                                               form_result['perms_updates'],
                                               recursive)
@@ -350,7 +350,7 @@ class ReposGroupsController(BaseController):
         """GET /repos_groups/group_name: Show a specific item"""
         # url('repos_group', group_name=GROUP_NAME)
 
-        c.group = c.repos_group = RepoGroupModel()._get_repo_group(group_name)
+        c.group = c.repo_group = RepoGroupModel()._get_repo_group(group_name)
         c.group_repos = c.group.repositories.all()
 
         #overwrite our cached list with current filter
@@ -378,20 +378,20 @@ class ReposGroupsController(BaseController):
         """GET /repos_groups/group_name/edit: Form to edit an existing item"""
         # url('edit_repos_group', group_name=GROUP_NAME)
 
-        c.repos_group = RepoGroupModel()._get_repo_group(group_name)
+        c.repo_group = RepoGroupModel()._get_repo_group(group_name)
         #we can only allow moving empty group if it's already a top-level
         #group, ie has no parents, or we're admin
         if HasPermissionAll('hg.admin')('group edit'):
             #we're global admin, we're ok and we can create TOP level groups
             allow_empty_group = True
-        elif not c.repos_group.parent_group:
+        elif not c.repo_group.parent_group:
             allow_empty_group = True
         else:
             allow_empty_group = False
 
         self.__load_defaults(allow_empty_group=allow_empty_group,
-                             exclude_group_ids=[c.repos_group.group_id])
-        defaults = self.__load_data(c.repos_group.group_id)
+                             exclude_group_ids=[c.repo_group.group_id])
+        defaults = self.__load_data(c.repo_group.group_id)
 
         return htmlfill.render(
             render('admin/repos_groups/repos_groups_edit.html'),
