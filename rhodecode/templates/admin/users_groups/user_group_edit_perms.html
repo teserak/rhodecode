@@ -8,7 +8,7 @@
         <td></td>
     </tr>
     ## USERS
-    %for r2p in c.users_group.user_user_group_to_perm:
+    %for r2p in c.user_group.user_user_group_to_perm:
         ##forbid revoking permission from yourself
         <tr id="id${id(r2p.user.username)}">
             %if c.rhodecode_user.user_id != r2p.user.user_id or c.rhodecode_user.is_admin:
@@ -41,7 +41,7 @@
     %endfor
 
     ## USER GROUPS
-    %for g2p in c.users_group.user_group_user_group_to_perm:
+    %for g2p in c.user_group.user_group_user_group_to_perm:
         <tr id="id${id(g2p.user_group.users_group_name)}">
             <td>${h.radio('g_perm_%s' % g2p.user_group.users_group_name,'usergroup.none')}</td>
             <td>${h.radio('g_perm_%s' % g2p.user_group.users_group_name,'usergroup.read')}</td>
@@ -85,7 +85,7 @@
 </table>
 <script type="text/javascript">
 function ajaxActionRevoke(obj_id, obj_type, field_id) {
-    url = "${h.url('delete_user_group_perm_member', id=c.users_group.users_group_id)}";
+    url = "${h.url('delete_user_group_perm_member', id=c.user_group.users_group_id)}";
     ajaxActionRevokePermission(url, obj_id, obj_type, field_id);
 };
 
@@ -94,7 +94,7 @@ YUE.onDOMReady(function () {
         YUD.setStyle('add_perm_input', 'display', 'none');
     }
     YAHOO.util.Event.addListener('add_perm', 'click', function () {
-        addPermAction(${_tmpl}, ${c.users_array|n}, ${c.users_groups_array|n});
+        addPermAction(${_tmpl}, ${c.users_array|n}, ${c.user_groups_array|n});
     });
 });
 

@@ -175,7 +175,7 @@ ${self.context_bar('showpullrequest')}
     </div>
     <script>
     var _USERS_AC_DATA = ${c.users_array|n};
-    var _GROUPS_AC_DATA = ${c.users_groups_array|n};
+    var _GROUPS_AC_DATA = ${c.user_groups_array|n};
     // TODO: switch this to pyroutes
     AJAX_COMMENT_URL = "${url('pullrequest_comment',repo_name=c.repo_name,pull_request_id=c.pull_request.pull_request_id)}";
     AJAX_COMMENT_DELETE_URL = "${url('pullrequest_comment_delete',repo_name=c.repo_name,comment_id='__COMMENT_ID__')}";

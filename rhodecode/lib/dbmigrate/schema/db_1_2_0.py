@@ -903,7 +903,7 @@ class UserToPerm(Base, BaseModel):
             raise Exception('perm needs to be an instance of Permission class')
 
         try:
-            cls.query().filter(cls.user_id == user_id)\
+            cls.query().filter(cls.user_id == user_id) \
                 .filter(cls.permission == perm).delete()
             Session.commit()
         except:
@@ -966,7 +966,7 @@ class UserGroupToPerm(Base, BaseModel):
             raise Exception('perm needs to be an instance of Permission class')
 
         try:
-            cls.query().filter(cls.users_group_id == users_group_id)\
+            cls.query().filter(cls.users_group_id == users_group_id) \
                 .filter(cls.permission == perm).delete()
             Session.commit()
         except:

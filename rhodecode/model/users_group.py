@@ -41,8 +41,8 @@ class UserGroupModel(BaseModel):
 
     cls = UserGroup
 
-    def _get_user_group(self, users_group):
-        return self._get_instance(UserGroup, users_group,
+    def _get_user_group(self, user_group):
+        return self._get_instance(UserGroup, user_group,
                                   callback=UserGroup.get_by_group_name)
 
     def _create_default_perms(self, user_group):
@@ -80,7 +80,7 @@ class UserGroupModel(BaseModel):
                 #check if we have permissions to alter this usergroup
                 if HasUserGroupPermissionAny('usergroup.read', 'usergroup.write',
                                              'usergroup.admin')(member):
-                    self.grant_users_group_permission(
+                    self.grant_user_group_permission(
                         target_user_group=user_group, user_group=member, perm=perm
                     )
         # set new permissions
@@ -93,15 +93,15 @@ class UserGroupModel(BaseModel):
                 #check if we have permissions to alter this usergroup
                 if HasUserGroupPermissionAny('usergroup.read', 'usergroup.write',
                                              'usergroup.admin')(member):
-                    self.grant_users_group_permission(
+                    self.grant_user_group_permission(
                         target_user_group=user_group, user_group=member, perm=perm
                     )
 
-    def get(self, users_group_id, cache=False):
-        return UserGroup.get(users_group_id)
+    def get(self, user_group_id, cache=False):
+        return UserGroup.get(user_group_id)
 
-    def get_group(self, users_group):
-        return self._get_user_group(users_group)
+    def get_group(self, user_group):
+        return self._get_user_group(user_group)
 
     def get_by_name(self, name, cache=False, case_insensitive=False):
         return UserGroup.get_by_group_name(name, cache, case_insensitive)
@@ -124,91 +124,91 @@ class UserGroupModel(BaseModel):
             log.error(traceback.format_exc())
             raise
 
-    def update(self, users_group, form_data):
+    def update(self, user_group, form_data):
 
         try:
-            users_group = self._get_user_group(users_group)
+            user_group = self._get_user_group(user_group)
 
             for k, v in form_data.items():
                 if k == 'users_group_members':
-                    users_group.members = []
+                    user_group.members = []
                     self.sa.flush()
                     members_list = []
                     if v:
                         v = [v] if isinstance(v, basestring) else v
                         for u_id in set(v):
-                            member = UserGroupMember(users_group.users_group_id, u_id)
+                            member = UserGroupMember(user_group.users_group_id, u_id)
                             members_list.append(member)
-                    setattr(users_group, 'members', members_list)
-                setattr(users_group, k, v)
+                    setattr(user_group, 'members', members_list)
+                setattr(user_group, k, v)
 
-            self.sa.add(users_group)
+            self.sa.add(user_group)
         except Exception:
             log.error(traceback.format_exc())
             raise
 
-    def delete(self, users_group, force=False):
+    def delete(self, user_group, force=False):
         """
         Deletes repository group, unless force flag is used
         raises exception if there are members in that group, else deletes
         group and users
 
-        :param users_group:
+        :param user_group:
         :param force:
         """
         try:
-            users_group = self._get_user_group(users_group)
+            user_group = self._get_user_group(user_group)
 
             # check if this group is not assigned to repo
             assigned_groups = UserGroupRepoToPerm.query()\
-                .filter(UserGroupRepoToPerm.users_group == users_group).all()
+                .filter(UserGroupRepoToPerm.users_group == user_group).all()
 
             if assigned_groups and not force:
                 raise UserGroupsAssignedException('RepoGroup assigned to %s' %
                                                    assigned_groups)
 
-            self.sa.delete(users_group)
+            self.sa.delete(user_group)
         except Exception:
             log.error(traceback.format_exc())
             raise
 
-    def add_user_to_group(self, users_group, user):
-        users_group = self._get_user_group(users_group)
+    def add_user_to_group(self, user_group, user):
+        user_group = self._get_user_group(user_group)
         user = self._get_user(user)
 
-        for m in users_group.members:
+        for m in user_group.members:
             u = m.user
             if u.user_id == user.user_id:
                 return True
 
         try:
-            users_group_member = UserGroupMember()
-            users_group_member.user = user
-            users_group_member.users_group = users_group
+            user_group_member = UserGroupMember()
+            user_group_member.user = user
+            user_group_member.users_group = user_group
 
-            users_group.members.append(users_group_member)
-            user.group_member.append(users_group_member)
+            user_group.members.append(user_group_member)
+            user.group_member.append(user_group_member)
 
-            self.sa.add(users_group_member)
-            return users_group_member
+            self.sa.add(user_group_member)
+            return user_group_member
         except Exception:
             log.error(traceback.format_exc())
             raise
 
-    def remove_user_from_group(self, users_group, user):
-        users_group = self._get_user_group(users_group)
+    def remove_user_from_group(self, user_group, user):
+        user_group = self._get_user_group(user_group)
         user = self._get_user(user)
 
-        users_group_member = None
-        for m in users_group.members:
+        user_group_member = None
+        for m in user_group.members:
             if m.user.user_id == user.user_id:
                 # Found this user's membership row
-                users_group_member = m
+                user_group_member = m
                 break
 
-        if users_group_member:
+        if user_group_member:
             try:
-                self.sa.delete(users_group_member)
+                self.sa.delete(user_group_member)
                 return True
             except Exception:
                 log.error(traceback.format_exc())
@@ -217,37 +217,37 @@ class UserGroupModel(BaseModel):
             # User isn't in that group
             return False
 
-    def has_perm(self, users_group, perm):
-        users_group = self._get_user_group(users_group)
+    def has_perm(self, user_group, perm):
+        user_group = self._get_user_group(user_group)
         perm = self._get_perm(perm)
 
         return UserGroupToPerm.query()\
-            .filter(UserGroupToPerm.users_group == users_group)\
+            .filter(UserGroupToPerm.users_group == user_group)\
             .filter(UserGroupToPerm.permission == perm).scalar() is not None
 
-    def grant_perm(self, users_group, perm):
-        users_group = self._get_user_group(users_group)
+    def grant_perm(self, user_group, perm):
+        user_group = self._get_user_group(user_group)
         perm = self._get_perm(perm)
 
         # if this permission is already granted skip it
         _perm = UserGroupToPerm.query()\
-            .filter(UserGroupToPerm.users_group == users_group)\
+            .filter(UserGroupToPerm.users_group == user_group)\
             .filter(UserGroupToPerm.permission == perm)\
             .scalar()
         if _perm:
             return
 
         new = UserGroupToPerm()
-        new.users_group = users_group
+        new.users_group = user_group
         new.permission = perm
         self.sa.add(new)
 
-    def revoke_perm(self, users_group, perm):
-        users_group = self._get_user_group(users_group)
+    def revokehas_permrevoke_permgrant_perm_perm(self, user_group, perm):
+        user_group = self._get_user_group(user_group)
         perm = self._get_perm(perm)
 
         obj = UserGroupToPerm.query()\
-            .filter(UserGroupToPerm.users_group == users_group)\
+            .filter(UserGroupToPerm.users_group == user_group)\
             .filter(UserGroupToPerm.permission == perm).scalar()
         if obj:
             self.sa.delete(obj)
@@ -301,7 +301,7 @@ class UserGroupModel(BaseModel):
             self.sa.delete(obj)
             log.debug('Revoked perm on %s on %s' % (user_group, user))
 
-    def grant_users_group_permission(self, target_user_group, user_group, perm):
+    def grant_user_group_permission(self, target_user_group, user_group, perm):
         """
         Grant user group permission for given target_user_group
 
@@ -331,7 +331,7 @@ class UserGroupModel(BaseModel):
         self.sa.add(obj)
         log.debug('Granted perm %s to %s on %s' % (perm, target_user_group, user_group))
 
-    def revoke_users_group_permission(self, target_user_group, user_group):
+    def revoke_user_group_permission(self, target_user_group, user_group):
         """
         Revoke user group permission for given target_user_group
 

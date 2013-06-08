@@ -185,7 +185,8 @@ class UsersController(BaseController):
             defaults = errors.value
             e = errors.error_dict or {}
             defaults.update({
-                'create_repo_perm': user_model.has_perm(id, 'hg.create.repository'),
+                'create_repo_perm': user_model.has_perm(id,
+                                                        'hg.create.repository'),
                 'fork_repo_perm': user_model.has_perm(id, 'hg.fork.repository'),
                 '_method': 'put'
             })
@@ -249,9 +250,10 @@ class UsersController(BaseController):
         c.extern_name = c.user.extern_name
         defaults = c.user.get_dict()
         defaults.update({
-         'create_repo_perm': umodel.has_perm(c.user, 'hg.create.repository'),
-         'create_user_group_perm': umodel.has_perm(c.user, 'hg.usergroup.create.true'),
-         'fork_repo_perm': umodel.has_perm(c.user, 'hg.fork.repository'),
+            'create_repo_perm': umodel.has_perm(c.user, 'hg.create.repository'),
+            'create_user_group_perm': umodel.has_perm(c.user,
+                                                      'hg.usergroup.create.true'),
+            'fork_repo_perm': umodel.has_perm(c.user, 'hg.fork.repository'),
         })
 
         return htmlfill.render(

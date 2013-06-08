@@ -83,7 +83,7 @@ class ReposGroupsController(BaseController):
         c.repo_groups_choices = map(lambda k: unicode(k[0]), c.repo_groups)
         repo_model = RepoModel()
         c.users_array = repo_model.get_users_js()
-        c.users_groups_array = repo_model.get_user_groups_js()
+        c.user_groups_array = repo_model.get_user_groups_js()
 
     def __load_data(self, group_id):
         """
@@ -323,7 +323,7 @@ class ReposGroupsController(BaseController):
             elif obj_type == 'user_group':
                 RepoGroupModel().delete_permission(
                     repos_group=group_name, obj=obj_id,
-                    obj_type='users_group', recursive=recursive
+                    obj_type='user_group', recursive=recursive
                 )
 
             Session().commit()

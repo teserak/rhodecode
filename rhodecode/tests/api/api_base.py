@@ -57,14 +57,14 @@ def api_call(test_obj, params):
 ## helpers
 def make_user_group(name=TEST_USER_GROUP):
     gr = fixture.create_user_group(name, cur_user=TEST_USER_ADMIN_LOGIN)
-    UserGroupModel().add_user_to_group(users_group=gr,
+    UserGroupModel().add_user_to_group(user_group=gr,
                                        user=TEST_USER_ADMIN_LOGIN)
     Session().commit()
     return gr
 
 
 def destroy_user_group(name=TEST_USER_GROUP):
-    UserGroupModel().delete(users_group=name, force=True)
+    UserGroupModel().delete(user_group=name, force=True)
     Session().commit()
 
 
@@ -1140,7 +1140,7 @@ class BaseTestApi(object):
             expected.append(ret)
         self._compare_ok(id_, expected, given=response.body)
 
-        UserGroupModel().delete(users_group='test_user_group2')
+        UserGroupModel().delete(user_group='test_user_group2')
         Session().commit()
 
     def test_api_create_user_group(self):
@@ -1193,7 +1193,7 @@ class BaseTestApi(object):
             'success': True}
         self._compare_ok(id_, expected, given=response.body)
 
-        UserGroupModel().delete(users_group=gr_name)
+        UserGroupModel().delete(user_group=gr_name)
         Session().commit()
 
     def test_api_add_user_to_user_group_that_doesnt_exist(self):
@@ -1217,7 +1217,7 @@ class BaseTestApi(object):
         expected = 'failed to add member to user group `%s`' % gr_name
         self._compare_error(id_, expected, given=response.body)
 
-        UserGroupModel().delete(users_group=gr_name)
+        UserGroupModel().delete(user_group=gr_name)
         Session().commit()
 
     def test_api_remove_user_from_user_group(self):
@@ -1237,7 +1237,7 @@ class BaseTestApi(object):
             'success': True}
         self._compare_ok(id_, expected, given=response.body)
 
-        UserGroupModel().delete(users_group=gr_name)
+        UserGroupModel().delete(user_group=gr_name)
         Session().commit()
 
     @mock.patch.object(UserGroupModel, 'remove_user_from_group', crash)
@@ -1254,7 +1254,7 @@ class BaseTestApi(object):
         expected = 'failed to remove member from user group `%s`' % gr_name
         self._compare_error(id_, expected, given=response.body)
 
-        UserGroupModel().delete(users_group=gr_name)
+        UserGroupModel().delete(user_group=gr_name)
         Session().commit()
 
     @parameterized.expand([('none', 'repository.none'),

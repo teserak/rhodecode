@@ -714,12 +714,12 @@ class UserGroup(Base, BaseModel):
         return q.scalar()
 
     @classmethod
-    def get(cls, users_group_id, cache=False):
-        users_group = cls.query()
+    def get(cls, user_group_id, cache=False):
+        user_group = cls.query()
         if cache:
-            users_group = users_group.options(FromCache("sql_cache_short",
-                                    "get_users_group_%s" % users_group_id))
-        return users_group.get(users_group_id)
+            user_group = user_group.options(FromCache("sql_cache_short",
+                                    "get_users_group_%s" % user_group_id))
+        return user_group.get(user_group_id)
 
     def get_api_data(self, with_members=True):
         user_group = self

@@ -144,7 +144,7 @@ class WhooshResultWrapper(object):
             res.update({'content_short': content_short,
                         'content_short_hl': self.highlight(content_short),
                         'f_path': f_path
-                      })
+            })
         elif self.search_type == 'path':
             full_repo_path = jn(self.repo_location, res['repository'])
             f_path = res['path'].split(full_repo_path)[-1]

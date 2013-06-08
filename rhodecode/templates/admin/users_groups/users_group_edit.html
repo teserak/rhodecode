@@ -2,7 +2,7 @@
 <%inherit file="/base/base.html"/>
 
 <%def name="title()">
-    ${_('Edit user group')} ${c.users_group.users_group_name} &middot; ${c.rhodecode_name}
+    ${_('Edit user group')} ${c.user_group.users_group_name} &middot; ${c.rhodecode_name}
 </%def>
 
 <%def name="breadcrumbs_links()">
@@ -10,7 +10,7 @@
     &raquo;
     ${h.link_to(_('UserGroups'),h.url('users_groups'))}
     &raquo;
-    ${_('Edit %s') % c.users_group.users_group_name}
+    ${_('Edit %s') % c.user_group.users_group_name}
 </%def>
 
 <%def name="page_nav()">
@@ -24,7 +24,7 @@
         ${self.breadcrumbs()}
     </div>
     <!-- end box / title -->
-    ${h.form(url('users_group', id=c.users_group.users_group_id),method='put', id='edit_users_group')}
+    ${h.form(url('users_group', id=c.user_group.users_group_id),method='put', id='edit_users_group')}
     <div class="form">
         <!-- fields -->
             <div class="fields">
@@ -117,7 +117,7 @@ ${h.end_form()}
         <h5>${_('Global Permissions')}</h5>
     </div>
     <%namespace name="dpb" file="/base/default_perms_box.html"/>
-    ${dpb.default_perms_box(url('users_group_perm', id=c.users_group.users_group_id))}
+    ${dpb.default_perms_box(url('users_group_perm', id=c.user_group.users_group_id))}
 
     ## permissions overview
     <%namespace name="p" file="/base/perms_summary.html"/>
@@ -128,7 +128,7 @@ ${h.end_form()}
     <div class="title">
         <h5>${_('Permissions')}</h5>
     </div>
-    ${h.form(url('set_user_group_perm_member', id=c.users_group.users_group_id),method='post')}
+    ${h.form(url('set_user_group_perm_member', id=c.user_group.users_group_id),method='post')}
     <div class="form">
        <div class="fields">
             <div class="field">

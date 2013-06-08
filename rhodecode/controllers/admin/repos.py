@@ -75,7 +75,7 @@ class ReposController(BaseRepoController):
 
         repo_model = RepoModel()
         c.users_array = repo_model.get_users_js()
-        c.users_groups_array = repo_model.get_user_groups_js()
+        c.user_groups_array = repo_model.get_user_groups_js()
         choices, c.landing_revs = ScmModel().get_repo_landing_revs()
         c.landing_revs_choices = choices
 

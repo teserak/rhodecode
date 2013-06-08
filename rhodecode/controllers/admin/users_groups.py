@@ -90,7 +90,7 @@ class UsersGroupsController(BaseController):
             permissions['repositories_groups'][gr.group.group_name] \
                 = gr.permission.permission_name
         c.permissions = permissions
-        c.group_members_obj = sorted((x.user for x in c.users_group.members),
+        c.group_members_obj = sorted((x.user for x in c.user_group.members),
                                      key=lambda u: u.username.lower())
 
         c.group_members = [(x.user_id, x.username) for x in c.group_members_obj]
@@ -99,7 +99,7 @@ class UsersGroupsController(BaseController):
                                      key=lambda u: u[1].lower())
         repo_model = RepoModel()
         c.users_array = repo_model.get_users_js()
-        c.users_groups_array = repo_model.get_user_groups_js()
+        c.user_groups_array = repo_model.get_user_groups_js()
         c.available_permissions = config['available_permissions']
 
     def __load_defaults(self, user_group_id):
@@ -117,7 +117,7 @@ class UsersGroupsController(BaseController):
             'create_repo_perm': ug_model.has_perm(user_group,
                                                   'hg.create.repository'),
             'create_user_group_perm': ug_model.has_perm(user_group,
-                                                  'hg.usergroup.create.true'),
+                                                        'hg.usergroup.create.true'),
             'fork_repo_perm': ug_model.has_perm(user_group,
                                                 'hg.fork.repository'),
         })
@@ -140,7 +140,7 @@ class UsersGroupsController(BaseController):
         group_iter = UserGroupList(UserGroup().query().all(),
                                    perm_set=['usergroup.admin'])
         sk = lambda g: g.users_group_name
-        c.users_groups_list = sorted(group_iter, key=sk)
+        c.user_groups_list = sorted(group_iter, key=sk)
         return render('admin/users_groups/users_groups.html')
 
     @HasPermissionAnyDecorator('hg.admin', 'hg.usergroup.create.true')
@@ -191,18 +191,18 @@ class UsersGroupsController(BaseController):
         #           method='put')
         # url('users_group', id=ID)
 
-        c.users_group = UserGroup.get_or_404(id)
+        c.user_group = UserGroup.get_or_404(id)
         self.__load_data(id)
 
         available_members = [safe_unicode(x[0]) for x in c.available_members]
 
         users_group_form = UserGroupForm(edit=True,
-                                          old_data=c.users_group.get_dict(),
+                                          old_data=c.user_group.get_dict(),
                                           available_members=available_members)()
 
         try:
             form_result = users_group_form.to_python(request.POST)
-            UserGroupModel().update(c.users_group, form_result)
+            UserGroupModel().update(c.user_group, form_result)
             gr = form_result['users_group_name']
             action_logger(self.rhodecode_user,
                           'admin_updated_users_group:%s' % gr,
@@ -304,7 +304,7 @@ class UsersGroupsController(BaseController):
                 UserGroupModel().revoke_user_permission(user_group=id,
                                                         user=obj_id)
             elif obj_type == 'user_group':
-                UserGroupModel().revoke_users_group_permission(target_user_group=id,
+                UserGroupModel().revoke_user_group_permission(target_user_group=id,
                                                                user_group=obj_id)
             Session().commit()
         except Exception:
@@ -322,7 +322,7 @@ class UsersGroupsController(BaseController):
         """GET /users_groups/id/edit: Form to edit an existing item"""
         # url('edit_users_group', id=ID)
 
-        c.users_group = UserGroup.get_or_404(id)
+        c.user_group = UserGroup.get_or_404(id)
         self.__load_data(id)
 
         defaults = self.__load_defaults(id)
@@ -339,19 +339,19 @@ class UsersGroupsController(BaseController):
         """PUT /users_perm/id: Update an existing item"""
         # url('users_group_perm', id=ID, method='put')
 
-        users_group = UserGroup.get_or_404(id)
+        user_group = UserGroup.get_or_404(id)
 
         try:
             form = CustomDefaultPermissionsForm()()
             form_result = form.to_python(request.POST)
 
             inherit_perms = form_result['inherit_default_permissions']
-            users_group.inherit_default_permissions = inherit_perms
-            Session().add(users_group)
+            user_group.inherit_default_permissions = inherit_perms
+            Session().add(user_group)
             usergroup_model = UserGroupModel()
 
             defs = UserGroupToPerm.query()\
-                .filter(UserGroupToPerm.users_group == users_group)\
+                .filter(UserGroupToPerm.users_group == user_group)\
                 .all()
             for ug in defs:
                 Session().delete(ug)

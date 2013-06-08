@@ -90,7 +90,7 @@ class RhodecodeAPI(object):
             "group_name": name,
             "active": str(active)
         }
-        self.rhodecode_api_post("create_users_group", args)
+        self.rhodecode_api_post("create_user_group", args)
 
     def add_membership(self, group, username):
         """Add specific user to a group."""
@@ -98,7 +98,7 @@ class RhodecodeAPI(object):
             "usersgroupid": group,
             "userid": username
         }
-        result = self.rhodecode_api_post("add_user_to_users_group", args)
+        result = self.rhodecode_api_post("add_user_to_user_group", args)
         if not result["success"]:
             raise UserAlreadyInGroupError("User %s already in group %s." %
                                           (username, group))
@@ -109,7 +109,7 @@ class RhodecodeAPI(object):
             "usersgroupid": group,
             "userid": username
         }
-        result = self.rhodecode_api_post("remove_user_from_users_group", args)
+        result = self.rhodecode_api_post("remove_user_from_user_group", args)
         if not result["success"]:
             raise UserNotInGroupError("User %s not in group %s." %
                                       (username, group))
@@ -117,7 +117,7 @@ class RhodecodeAPI(object):
     def get_group_members(self, name):
         """Get the list of member usernames from a user group."""
         args = {"usersgroupid": name}
-        members = self.rhodecode_api_post("get_users_group", args)['members']
+        members = self.rhodecode_api_post("get_user_group", args)['members']
         member_list = []
         for member in members:
             member_list.append(member["username"])
@@ -126,7 +126,7 @@ class RhodecodeAPI(object):
     def get_group(self, name):
         """Return group info."""
         args = {"usersgroupid": name}
-        return self.rhodecode_api_post("get_users_group", args)
+        return self.rhodecode_api_post("get_user_group", args)
 
     def get_user(self, username):
         """Return user info."""

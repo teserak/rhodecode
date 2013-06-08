@@ -976,7 +976,7 @@ OUTPUT::
     error:  null
 
 
-grant_users_group_permission
+grant_user_group_permission
 ----------------------------
 
 Grant permission for user group on given repository, or update
@@ -988,7 +988,7 @@ INPUT::
 
     id : <id_for_response>
     api_key : "<api_key>"
-    method :  "grant_users_group_permission"
+    method :  "grant_user_group_permission"
     args:     {
                 "repoid" : "<reponame or repo_id>"
                 "usersgroupid" : "<user group id or name>"
@@ -1005,7 +1005,7 @@ OUTPUT::
     error:  null
 
 
-revoke_users_group_permission
+revoke_user_group_permission
 -----------------------------
 
 Revoke permission for user group on given repository.This command can be
@@ -1015,7 +1015,7 @@ INPUT::
 
     id : <id_for_response>
     api_key : "<api_key>"
-    method  : "revoke_users_group_permission"
+    method  : "revoke_user_group_permission"
     args:     {
                 "repoid" : "<reponame or repo_id>"
                 "usersgroupid" : "<user group id or name>"
