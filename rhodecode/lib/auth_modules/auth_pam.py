@@ -3,7 +3,7 @@
     rhodecode.lib.auth_pam
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    RhodeCode authentication library for PAM 
+    RhodeCode authentication library for PAM
 
     :created_on: Created on Apr 09, 2013
     :author: Alexey Larikov
