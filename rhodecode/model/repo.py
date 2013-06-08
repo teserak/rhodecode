@@ -349,7 +349,7 @@ class RepoModel(BaseModel):
             raise
 
     def create_repo(self, repo_name, repo_type, description, owner,
-                    private=False, clone_uri=None, repos_group=None,
+                    private=False, clone_uri=None, repo_group=None,
                     landing_rev='tip', just_db=False, fork_of=None,
                     copy_fork_permissions=False, enable_statistics=False,
                     enable_locking=False, enable_downloads=False):
@@ -361,7 +361,7 @@ class RepoModel(BaseModel):
 
         owner = self._get_user(owner)
         fork_of = self._get_repo(fork_of)
-        repo_group = self._get_repo_group(repos_group)
+        repo_group = self._get_repo_group(repo_group)
         try:
 
             # repo name is just a name of repository

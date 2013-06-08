@@ -1524,11 +1524,11 @@ class ApiController(JSONRPCController):
                 owner=owner,
                 private=private,
                 clone_uri=clone_uri,
-                repos_group=repo_group,
+                repo_group=repo_group,
                 landing_rev=landing_rev,
                 enable_statistics=enable_statistics,
-                enable_downloads=enable_downloads,
-                enable_locking=enable_locking
+                enable_locking=enable_locking,
+                enable_downloads=enable_downloads
             )
 
             Session().commit()

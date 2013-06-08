@@ -475,13 +475,13 @@ def repo2db_mapper(initial_repo_list, remove_obsolete=False,
                 repo_name=name,
                 repo_type=repo.alias,
                 description=desc,
-                repos_group=getattr(group, 'group_id', None),
                 owner=user,
+                private=private,
+                repo_group=getattr(group, 'group_id', None),
                 just_db=True,
-                enable_locking=enable_locking,
-                enable_downloads=enable_downloads,
                 enable_statistics=enable_statistics,
-                private=private
+                enable_locking=enable_locking,
+                enable_downloads=enable_downloads
             )
             # we added that repo just now, and make sure it has githook
             # installed
