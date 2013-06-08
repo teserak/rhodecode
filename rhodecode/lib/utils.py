@@ -54,7 +54,7 @@ from rhodecode.model import meta
 from rhodecode.model.db import Repository, User, RhodeCodeUi, \
     UserLog, RepoGroup, RhodeCodeSetting, CacheInvalidation, UserGroup
 from rhodecode.model.meta import Session
-from rhodecode.model.repos_group import RepoGroupModel
+from rhodecode.model.repo_group import RepoGroupModel
 from rhodecode.lib.utils2 import safe_str, safe_unicode
 from rhodecode.lib.vcs.utils.fakemod import create_module
 from rhodecode.model.user_group import UserGroupModel

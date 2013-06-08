@@ -41,7 +41,7 @@ from rhodecode.model.db import User, Permission, RhodeCodeUi, \
     UserRepoGroupToPerm, CacheInvalidation, UserGroup
 
 from sqlalchemy.engine import create_engine
-from rhodecode.model.repos_group import RepoGroupModel
+from rhodecode.model.repo_group import RepoGroupModel
 #from rhodecode.model import meta
 from rhodecode.model.meta import Session, Base
 from rhodecode.model.repo import RepoModel

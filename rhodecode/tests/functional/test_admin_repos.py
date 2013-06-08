@@ -7,7 +7,7 @@ from rhodecode.lib import vcs
 from rhodecode.model.db import Repository, RepoGroup, UserRepoToPerm, User,\
     Permission
 from rhodecode.tests import *
-from rhodecode.model.repos_group import RepoGroupModel
+from rhodecode.model.repo_group import RepoGroupModel
 from rhodecode.model.repo import RepoModel
 from rhodecode.model.meta import Session
 from rhodecode.tests.fixture import Fixture

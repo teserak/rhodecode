@@ -1,7 +1,7 @@
 import functools
 from rhodecode.tests import *
 
-from rhodecode.model.repos_group import RepoGroupModel
+from rhodecode.model.repo_group import RepoGroupModel
 from rhodecode.model.db import RepoGroup, Repository, User
 
 from rhodecode.model.meta import Session

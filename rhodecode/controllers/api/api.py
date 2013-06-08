@@ -38,7 +38,7 @@ from rhodecode.lib.auth import (
 from rhodecode.lib.utils import map_groups, repo2db_mapper
 from rhodecode.lib.utils2 import str2bool, time_to_datetime, safe_int
 from rhodecode.model.meta import Session
-from rhodecode.model.repos_group import RepoGroupModel
+from rhodecode.model.repo_group import RepoGroupModel
 from rhodecode.model.scm import ScmModel
 from rhodecode.model.repo import RepoModel
 from rhodecode.model.user import UserModel

@@ -44,7 +44,7 @@ from rhodecode.lib.auth import LoginRequired, HasPermissionAnyDecorator,\
 from rhodecode.lib.base import BaseController, render
 from rhodecode.model.db import RepoGroup, Repository
 from rhodecode.model.scm import RepoGroupList
-from rhodecode.model.repos_group import RepoGroupModel
+from rhodecode.model.repo_group import RepoGroupModel
 from rhodecode.model.forms import ReposGroupForm, RepoGroupPermsForm
 from rhodecode.model.meta import Session
 from rhodecode.model.repo import RepoModel

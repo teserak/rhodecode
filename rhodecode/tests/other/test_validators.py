@@ -7,7 +7,7 @@ from rhodecode.model import validators as v
 from rhodecode.model.user_group import UserGroupModel
 
 from rhodecode.model.meta import Session
-from rhodecode.model.repos_group import RepoGroupModel
+from rhodecode.model.repo_group import RepoGroupModel
 from rhodecode.model.db import ChangesetStatus, Repository
 from rhodecode.model.changeset_status import ChangesetStatusModel
 from rhodecode.tests.fixture import Fixture

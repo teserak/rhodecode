@@ -1,6 +1,6 @@
 from rhodecode.tests import *
 from rhodecode.tests.fixture import Fixture
-from rhodecode.model.repos_group import RepoGroupModel
+from rhodecode.model.repo_group import RepoGroupModel
 from rhodecode.model.repo import RepoModel
 from rhodecode.model.db import RepoGroup, User, UserGroupRepoGroupToPerm,\
     Permission, UserToPerm
