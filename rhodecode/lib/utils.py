@@ -57,7 +57,7 @@ from rhodecode.model.meta import Session
 from rhodecode.model.repos_group import RepoGroupModel
 from rhodecode.lib.utils2 import safe_str, safe_unicode
 from rhodecode.lib.vcs.utils.fakemod import create_module
-from rhodecode.model.users_group import UserGroupModel
+from rhodecode.model.user_group import UserGroupModel
 
 log = logging.getLogger(__name__)
 

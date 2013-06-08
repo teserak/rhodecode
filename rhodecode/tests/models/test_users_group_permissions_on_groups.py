@@ -8,7 +8,7 @@ from rhodecode.model.meta import Session
 from nose.tools import with_setup
 from rhodecode.tests.models.common import _create_project_tree, check_tree_perms, \
     _get_perms, _check_expected_count, expected_count, _destroy_project_tree
-from rhodecode.model.users_group import UserGroupModel
+from rhodecode.model.user_group import UserGroupModel
 from rhodecode.tests.fixture import Fixture
 
 fixture = Fixture()

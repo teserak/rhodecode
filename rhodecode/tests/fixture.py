@@ -6,7 +6,7 @@ from rhodecode.model.db import Repository, User, RepoGroup, UserGroup
 from rhodecode.model.meta import Session
 from rhodecode.model.repo import RepoModel
 from rhodecode.model.repos_group import RepoGroupModel
-from rhodecode.model.users_group import UserGroupModel
+from rhodecode.model.user_group import UserGroupModel
 from rhodecode.model.gist import GistModel
 
 class Fixture(object):

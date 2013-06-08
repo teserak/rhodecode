@@ -4,7 +4,7 @@ import formencode
 from rhodecode.tests import *
 
 from rhodecode.model import validators as v
-from rhodecode.model.users_group import UserGroupModel
+from rhodecode.model.user_group import UserGroupModel
 
 from rhodecode.model.meta import Session
 from rhodecode.model.repos_group import RepoGroupModel

@@ -40,7 +40,7 @@ from rhodecode.lib.auth import LoginRequired, HasPermissionAllDecorator,\
     HasUserGroupPermissionAnyDecorator, HasPermissionAnyDecorator
 from rhodecode.lib.base import BaseController, render
 from rhodecode.model.scm import UserGroupList
-from rhodecode.model.users_group import UserGroupModel
+from rhodecode.model.user_group import UserGroupModel
 from rhodecode.model.repo import RepoModel
 from rhodecode.model.db import User, UserGroup, UserGroupToPerm,\
     UserGroupRepoToPerm, UserGroupRepoGroupToPerm

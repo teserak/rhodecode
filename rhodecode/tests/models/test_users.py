@@ -5,7 +5,7 @@ from rhodecode.model.db import User, UserGroup, UserGroupMember, UserEmailMap,\
 from rhodecode.model.user import UserModel
 
 from rhodecode.model.meta import Session
-from rhodecode.model.users_group import UserGroupModel
+from rhodecode.model.user_group import UserGroupModel
 from rhodecode.tests.fixture import Fixture
 
 fixture = Fixture()

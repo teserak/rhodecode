@@ -7,7 +7,7 @@ from rhodecode.model.db import RepoGroup, User, UserGroupRepoGroupToPerm,\
 from rhodecode.model.user import UserModel
 
 from rhodecode.model.meta import Session
-from rhodecode.model.users_group import UserGroupModel
+from rhodecode.model.user_group import UserGroupModel
 from rhodecode.lib.auth import AuthUser
 from rhodecode.model.permission import PermissionModel
 

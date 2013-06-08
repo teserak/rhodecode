@@ -11,7 +11,7 @@ from rhodecode.tests.fixture import Fixture
 from rhodecode.lib.compat import json
 from rhodecode.lib.auth import AuthUser
 from rhodecode.model.user import UserModel
-from rhodecode.model.users_group import UserGroupModel
+from rhodecode.model.user_group import UserGroupModel
 from rhodecode.model.repo import RepoModel
 from rhodecode.model.meta import Session
 from rhodecode.model.scm import ScmModel

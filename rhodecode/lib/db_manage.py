@@ -46,7 +46,7 @@ from rhodecode.model.repos_group import RepoGroupModel
 from rhodecode.model.meta import Session, Base
 from rhodecode.model.repo import RepoModel
 from rhodecode.model.permission import PermissionModel
-from rhodecode.model.users_group import UserGroupModel
+from rhodecode.model.user_group import UserGroupModel
 
 
 log = logging.getLogger(__name__)

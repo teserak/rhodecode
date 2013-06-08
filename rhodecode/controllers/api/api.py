@@ -42,7 +42,7 @@ from rhodecode.model.repos_group import RepoGroupModel
 from rhodecode.model.scm import ScmModel
 from rhodecode.model.repo import RepoModel
 from rhodecode.model.user import UserModel
-from rhodecode.model.users_group import UserGroupModel
+from rhodecode.model.user_group import UserGroupModel
 from rhodecode.model.gist import GistModel
 from rhodecode.model.db import (
     Repository, RhodeCodeSetting, UserIpMap, Permission, User, Gist,
