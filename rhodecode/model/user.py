@@ -117,7 +117,7 @@ class UserModel(BaseModel):
         :param extern_type:
         """
 
-        from rhodecode.lib.auth import get_crypt_password
+        from rhodecode.lib.auth import get_crypt_password, check_password
 
         log.debug('Checking for %s account in RhodeCode database' % username)
         user = User.get_by_username(username, case_insensitive=True)
@@ -133,16 +133,22 @@ class UserModel(BaseModel):
         try:
             new_user.username = username
             new_user.admin = admin
-            # set password only if creating an user or password is changed
-            if not edit or user.password != password:
-                new_user.password = get_crypt_password(password) if password else None
-                new_user.api_key = generate_api_key(username)
             new_user.email = email
             new_user.active = active
             new_user.extern_name = safe_unicode(extern_name) if extern_name else None
             new_user.extern_type = safe_unicode(extern_type) if extern_type else None
             new_user.name = firstname
             new_user.lastname = lastname
+
+            # set password only if creating an user or password is changed
+            password_change = new_user.password and not check_password(password,
+                                                            new_user.password)
+            if not edit or password_change:
+                reason = 'new password' if edit else 'new user'
+                log.debug('Updating password and API key, reason=>%s' % (reason,))
+                new_user.password = get_crypt_password(password) if password else None
+                new_user.api_key = generate_api_key(username)
+
             self.sa.add(new_user)
             return new_user
         except (DatabaseError,):
@@ -241,8 +247,7 @@ class UserModel(BaseModel):
                     '- Username: %s\n'
                     '- Full Name: %s\n'
                     '- Email: %s\n')
-            body = body % (new_user.username, new_user.full_name,
-                           new_user.email)
+            body = body % (new_user.username, new_user.full_name, new_user.email)
             edit_url = url('edit_user', id=new_user.user_id, qualified=True)
             kw = {'registered_user_url': edit_url}
             NotificationModel().create(created_by=new_user, subject=subject,
@@ -260,8 +265,8 @@ class UserModel(BaseModel):
             user = self.get(user_id, cache=False)
             if user.username == User.DEFAULT_USER:
                 raise DefaultUserException(
-                                _("You can't Edit this user since it's"
-                                  " crucial for entire application"))
+                                _("You can't Edit this user since it's "
+                                  "crucial for entire application"))
 
             for k, v in form_data.items():
                 if k in skip_attrs:
@@ -270,6 +275,8 @@ class UserModel(BaseModel):
                     user.password = get_crypt_password(v)
                     user.api_key = generate_api_key(user.username)
                 else:
+                    # old legacy thing orm models store firstname as name,
+                    # need proper refactor to username
                     if k == 'firstname':
                         k = 'name'
                     setattr(user, k, v)
