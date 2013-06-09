@@ -226,6 +226,17 @@ class RhodeCodeSetting(Base, BaseModel):
         return res
 
     @classmethod
+    def create_or_update(cls, key, val='', type='unicode'):
+        res = cls.get_by_name(key)
+        if not res:
+            res = cls(key, val, type)
+        else:
+            res.app_settings_name = key
+            res.app_settings_value = val
+            res.app_settings_type = type
+        return res
+
+    @classmethod
     def get_app_settings(cls, cache=False):
 
         ret = cls.query()

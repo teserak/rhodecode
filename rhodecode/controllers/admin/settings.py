@@ -143,15 +143,15 @@ class SettingsController(BaseController):
                 )
 
             try:
-                sett1 = RhodeCodeSetting.get_by_name_or_create('title',
+                sett1 = RhodeCodeSetting.create_or_update('title',
                                             form_result['rhodecode_title'])
                 Session().add(sett1)
 
-                sett2 = RhodeCodeSetting.get_by_name_or_create('realm',
+                sett2 = RhodeCodeSetting.create_or_update('realm',
                                             form_result['rhodecode_realm'])
                 Session().add(sett2)
 
-                sett3 = RhodeCodeSetting.get_by_name_or_create('ga_code',
+                sett3 = RhodeCodeSetting.create_or_update('ga_code',
                                             form_result['rhodecode_ga_code'])
                 Session().add(sett3)
 
@@ -180,38 +180,32 @@ class SettingsController(BaseController):
                 )
 
             try:
-                sett1 = RhodeCodeSetting.get_by_name_or_create(
-                                    'show_public_icon',
+                sett1 = RhodeCodeSetting.create_or_update('show_public_icon',
                                     form_result['rhodecode_show_public_icon'],
                                     'bool')
                 Session().add(sett1)
 
-                sett2 = RhodeCodeSetting.get_by_name_or_create(
-                                    'show_private_icon',
+                sett2 = RhodeCodeSetting.create_or_update('show_private_icon',
                                     form_result['rhodecode_show_private_icon'],
                                     'bool')
                 Session().add(sett2)
 
-                sett3 = RhodeCodeSetting.get_by_name_or_create(
-                                    'stylify_metatags',
+                sett3 = RhodeCodeSetting.create_or_update('stylify_metatags',
                                     form_result['rhodecode_stylify_metatags'],
                                     'bool')
                 Session().add(sett3)
 
-                sett4 = RhodeCodeSetting.get_by_name_or_create(
-                                    'repository_fields',
+                sett4 = RhodeCodeSetting.create_or_update('repository_fields',
                                     form_result['rhodecode_repository_fields'],
                                     'bool')
                 Session().add(sett4)
 
-                sett5 = RhodeCodeSetting.get_by_name_or_create(
-                                    'dashboard_items',
+                sett5 = RhodeCodeSetting.create_or_update('dashboard_items',
                                     form_result['rhodecode_dashboard_items'],
                                     'int')
                 Session().add(sett5)
 
-                sett6 = RhodeCodeSetting.get_by_name_or_create(
-                                    'show_version',
+                sett6 = RhodeCodeSetting.create_or_update('show_version',
                                     form_result['rhodecode_show_version'],
                                     'bool')
                 Session().add(sett6)
