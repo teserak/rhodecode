@@ -178,7 +178,7 @@ def loadplugin(plugin):
         raise TypeError("Authentication class %s.RhodeCodeAuthPlugin is not "
                         "a subclass of %s" % (plugin, RhodeCodeAuthPluginBase))
     plugin = pluginclass()
-    if (plugin.plugin_settings.im_func != RhodeCodeAuthPluginBase.plugin_settings.im_func):
+    if plugin.plugin_settings.im_func != RhodeCodeAuthPluginBase.plugin_settings.im_func:
         raise TypeError("Authentication class %s.RhodeCodeAuthPluginBase "
                         "has overriden the plugin_settings method, which is "
                         "forbidden." % plugin)
@@ -234,9 +234,9 @@ def authenticate(username, password, environ=None):
                                            environ=environ or {})
         if plugin_user:
             # if user is not active from our extern type we should fail to authe
-            # this can prevent from creating users in RhodeCode when using external
-            # authentication, but if it's inactive user we shouldn't create
-            # that user anyway
+            # this can prevent from creating users in RhodeCode when using
+            # external authentication, but if it's inactive user we shouldn't
+            # create that user anyway
             if plugin_user['active_from_extern'] is False:
                 log.warning("User %s authenticated against %s, but is inactive"
                             % (username, plugin.__module__))

@@ -1,6 +1,7 @@
 from sqlalchemy.orm.exc import NoResultFound
 
 from rhodecode.tests import *
+from rhodecode.tests.fixture import Fixture
 from rhodecode.model.db import User, Permission
 from rhodecode.lib.auth import check_password
 from rhodecode.model.user import UserModel
@@ -8,8 +9,16 @@ from rhodecode.model import validators
 from rhodecode.lib import helpers as h
 from rhodecode.model.meta import Session
 
+fixture = Fixture()
+
 
 class TestAdminUsersController(TestController):
+    test_user_1 = 'testme'
+
+    @classmethod
+    def teardown_class(cls):
+        UserModel().delete(cls.test_user_1)
+        Session().commit()
 
     def test_index(self):
         self.log_user()
@@ -85,47 +94,55 @@ class TestAdminUsersController(TestController):
     def test_new_as_xml(self):
         response = self.app.get(url('formatted_new_user', format='xml'))
 
-    @parameterized.expand([('firstname', 'new_username'),
-                           ('lastname', 'new_username'),
-                           ('admin', True),
-                           ('admin', False),
-                           ('extern_type', 'ldap'),
-                           ('extern_type', None),
-                           ('extern_name', 'test'),
-                           ('extern_name', None),
-                           ('active', False),
-                           ('active', True),
-                           ('email', 'some@email.com'),
-                           ])
-    def test_update(self, name, expected):
+    @parameterized.expand(
+        [('firstname', {'firstname': 'new_username'}),
+         ('lastname', {'lastname': 'new_username'}),
+         ('admin', {'admin': True}),
+         ('admin', {'admin': False}),
+         ('extern_type', {'extern_type': 'ldap'}),
+         ('extern_type', {'extern_type': None}),
+         ('extern_name', {'extern_name': 'test'}),
+         ('extern_name', {'extern_name': None}),
+         ('active', {'active': False}),
+         ('active', {'active': True}),
+         ('email', {'email': 'some@email.com'}),
+        # ('new_password', {'new_password': 'foobar123',
+        #                   'password_confirmation': 'foobar123'})
+        ])
+    def test_update(self, name, attrs):
         self.log_user()
-        uname = 'testme'
-        usr = UserModel().create_or_update(username=uname, password='qweqwe',
-                                           email='testme@rhodecod.org')
+        usr = fixture.create_user(self.test_user_1, password='qweqwe',
+                                  email='testme@rhodecode.org',
+                                  extern_type='rhodecode',
+                                  extern_name=self.test_user_1,
+                                  skip_if_exists=True)
         Session().commit()
         params = usr.get_api_data()
-        params.update({name: expected})
         params.update({'password_confirmation': ''})
         params.update({'new_password': ''})
+        params.update(attrs)
         if name == 'email':
-            params['emails'] = [expected]
-        if name == 'ldap_dn':
-            #cannot update this via form
-            params['ldap_dn'] = None
-        try:
-            response = self.app.put(url('user', id=usr.user_id), params)
+            params['emails'] = [attrs['email']]
+        if name == 'extern_type':
+            #cannot update this via form, expected value is original one
+            params['extern_type'] = "rhodecode"
+        if name == 'extern_name':
+            #cannot update this via form, expected value is original one
+            params['extern_name'] = self.test_user_1
+            # special case since this user is not
+                                          # logged in yet his data is not filled
+                                          # so we use creation data
 
-            self.checkSessionFlash(response, '''User updated successfully''')
+        response = self.app.put(url('user', id=usr.user_id), params)
+        self.checkSessionFlash(response, 'User updated successfully')
 
-            updated_user = User.get_by_username(uname)
-            updated_params = updated_user.get_api_data()
-            updated_params.update({'password_confirmation': ''})
-            updated_params.update({'new_password': ''})
+        updated_user = User.get_by_username(self.test_user_1)
+        updated_params = updated_user.get_api_data()
+        updated_params.update({'password_confirmation': ''})
+        updated_params.update({'new_password': ''})
 
-            self.assertEqual(params, updated_params)
+        self.assertEqual(params, updated_params)
 
-        finally:
-            UserModel().delete('testme')
 
     def test_update_browser_fakeout(self):
         response = self.app.post(url('user', id=1), params=dict(_method='put'))

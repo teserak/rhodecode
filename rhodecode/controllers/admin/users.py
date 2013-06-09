@@ -167,10 +167,12 @@ class UsersController(BaseController):
         form_result = {}
         try:
             form_result = _form.to_python(dict(request.POST))
-            skip_attrs = []
-            if c.extern_type:
-                #forbid updating username for external accounts
-                skip_attrs = ['username']
+            skip_attrs = ['extern_type', 'extern_name']
+            #TODO: plugin should define if username can be updated
+            if c.extern_name != "rhodecode":
+                # forbid updating username for external accounts
+                skip_attrs.append('username')
+
             user_model.update(id, form_result, skip_attrs=skip_attrs)
             usr = form_result['username']
             action_logger(self.rhodecode_user, 'admin_updated_user:%s' % usr,

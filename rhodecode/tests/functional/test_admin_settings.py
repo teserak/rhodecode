@@ -3,13 +3,22 @@
 from rhodecode.lib.auth import get_crypt_password, check_password
 from rhodecode.model.db import User, RhodeCodeSetting, Repository
 from rhodecode.tests import *
+from rhodecode.tests.fixture import Fixture
 from rhodecode.lib import helpers as h
 from rhodecode.model.user import UserModel
 from rhodecode.model.scm import ScmModel
 from rhodecode.model.meta import Session
 
+fixture = Fixture()
+
 
 class TestAdminSettingsController(TestController):
+    test_user_1 = 'testme'
+
+    @classmethod
+    def teardown_class(cls):
+        UserModel().delete(cls.test_user_1)
+        Session().commit()
 
     def test_index(self):
         response = self.app.get(url('admin_settings'))
@@ -122,59 +131,63 @@ class TestAdminSettingsController(TestController):
 
         response.mustcontain('value="test_admin')
 
-    @parameterized.expand([('firstname', 'new_username'),
-                           ('lastname', 'new_username'),
-                           ('admin', True),
-                           ('admin', False),
-                           ('extern_type', 'ldap'),
-                           ('extern_type', None),
-                           ('extern_name', 'test'),
-                           ('extern_name', None),
-                           ('active', False),
-                           ('active', True),
-                           ('email', 'some@email.com'),
-                           ])
-    def test_my_account_update(self, name, expected):
-        uname = 'testme'
-        usr = UserModel().create_or_update(username=uname, password='qweqwe',
-                                           email='testme@rhodecod.org')
-        Session().commit()
-        params = usr.get_api_data()
+    @parameterized.expand(
+        [('firstname', {'firstname': 'new_username'}),
+         ('lastname', {'lastname': 'new_username'}),
+         ('admin', {'admin': True}),
+         ('admin', {'admin': False}),
+         ('extern_type', {'extern_type': 'ldap'}),
+         ('extern_type', {'extern_type': None}),
+         ('extern_name', {'extern_name': 'test'}),
+         ('extern_name', {'extern_name': None}),
+         ('active', {'active': False}),
+         ('active', {'active': True}),
+         ('email', {'email': 'some@email.com'}),
+        # ('new_password', {'new_password': 'foobar123',
+        #                   'password_confirmation': 'foobar123'})
+        ])
+    def test_my_account_update(self, name, attrs):
+        usr = fixture.create_user(self.test_user_1, password='qweqwe',
+                                  email='testme@rhodecode.org',
+                                  extern_type='rhodecode',
+                                  extern_name=self.test_user_1,
+                                  skip_if_exists=True)
+        params = usr.get_api_data()  # current user data
         user_id = usr.user_id
-        self.log_user(username=uname, password='qweqwe')
-        params.update({name: expected})
+        self.log_user(username=self.test_user_1, password='qweqwe')
+
         params.update({'password_confirmation': ''})
         params.update({'new_password': ''})
+        params.update({'extern_name': str(user_id)})
+        params.update(attrs)
+        response = self.app.put(url('admin_settings_my_account_update',
+                                     id=user_id), params)
 
-        try:
-            response = self.app.put(url('admin_settings_my_account_update',
-                                        id=user_id), params)
+        self.checkSessionFlash(response,
+                               'Your account was updated successfully')
 
-            self.checkSessionFlash(response,
-                                   'Your account was updated successfully')
+        updated_user = User.get_by_username(self.test_user_1)
+        updated_params = updated_user.get_api_data()
+        updated_params.update({'password_confirmation': ''})
+        updated_params.update({'new_password': ''})
 
-            updated_user = User.get_by_username(uname)
-            updated_params = updated_user.get_api_data()
-            updated_params.update({'password_confirmation': ''})
-            updated_params.update({'new_password': ''})
+        params['last_login'] = updated_params['last_login']
+        if name == 'email':
+            params['emails'] = [attrs['email']]
+        if name == 'extern_type':
+            #cannot update this via form, expected value is original one
+            params['extern_type'] = "rhodecode"
+        if name == 'extern_name':
+            #cannot update this via form, expected value is original one
+            params['extern_name'] = str(user_id)
+        if name == 'active':
+            #my account cannot deactivate account
+            params['active'] = True
+        if name == 'admin':
+            #my account cannot make you an admin !
+            params['admin'] = False
 
-            params['last_login'] = updated_params['last_login']
-            if name == 'email':
-                params['emails'] = [expected]
-            if name in ['extern_type', 'extern_name']:
-                #cannot update this via form
-                params[name] = None
-            if name == 'active':
-                #my account cannot deactivate account
-                params['active'] = True
-            if name == 'admin':
-                #my account cannot make you an admin !
-                params['admin'] = False
-
-            self.assertEqual(params, updated_params)
-
-        finally:
-            UserModel().delete('testme')
+        self.assertEqual(params, updated_params)
 
     def test_my_account_update_err_email_exists(self):
         self.log_user()

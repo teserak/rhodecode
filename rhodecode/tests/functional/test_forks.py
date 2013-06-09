@@ -1,9 +1,12 @@
 from rhodecode.tests import *
+from rhodecode.tests.fixture import Fixture
 
 from rhodecode.model.db import Repository
 from rhodecode.model.repo import RepoModel
 from rhodecode.model.user import UserModel
 from rhodecode.model.meta import Session
+
+fixture = Fixture()
 
 
 class TestForksController(TestController):
@@ -11,10 +14,8 @@ class TestForksController(TestController):
     def setUp(self):
         self.username = u'forkuser'
         self.password = u'qweqwe'
-        self.u1 = UserModel().create_or_update(
-            username=self.username, password=self.password,
-            email=u'fork_king@rhodecode.org', firstname=u'u1', lastname=u'u1'
-        )
+        self.u1 = fixture.create_user(self.username, password=self.password,
+                                      email=u'fork_king@rhodecode.org')
         Session().commit()
 
     def tearDown(self):

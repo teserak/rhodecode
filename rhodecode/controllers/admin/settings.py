@@ -446,10 +446,13 @@ class SettingsController(BaseController):
         form_result = {}
         try:
             form_result = _form.to_python(dict(request.POST))
-            skip_attrs = ['admin', 'active']  # skip attr for my account
-            if c.extern_name:
-                #forbid updating username for ldap accounts
+            # skip updating those attrs for my account
+            skip_attrs = ['admin', 'active', 'extern_type', 'extern_name']
+            #TODO: plugin should define if username can be updated
+            if c.extern_name != "rhodecode":
+                # forbid updating username for external accounts
                 skip_attrs.append('username')
+
             UserModel().update(uid, form_result, skip_attrs=skip_attrs)
             h.flash(_('Your account was updated successfully'),
                     category='success')
