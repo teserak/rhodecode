@@ -210,7 +210,7 @@ def authenticate(username, password, environ=None):
                               % (module, str(e)))
 
         plugin_name = plugin.name()
-        if (user) and (user.extern_type) and (user.extern_type != plugin_name):
+        if user and user.extern_type and user.extern_type != plugin_name:
             log.debug('User %s should authenticate using %s this is %s, skipping'
                       % (user, user.extern_type, plugin_name))
             continue

@@ -125,7 +125,8 @@ class LoginController(BaseController):
                     errors=errors.error_dict or {},
                     prefix_error=False,
                     encoding="UTF-8")
-        #check if we use container plugin, and try to login using it.
+
+        # check if we use container plugin, and try to login using it.
         auth_plugins = RhodeCodeSetting.get_auth_plugins()
         if 'rhodecode.lib.auth_modules.auth_container' in auth_plugins:
             from rhodecode.lib import auth_modules
