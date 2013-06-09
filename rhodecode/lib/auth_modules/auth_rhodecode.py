@@ -53,11 +53,11 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
 
     def auth(self, userobj, username, password, settings, **kwargs):
         if not userobj:
-            log.debug('userobj was:%s skipping' % (userobj))
+            log.debug('userobj was:%s skipping' % (userobj, ))
             return None
-        if (userobj.extern_type != self.name()):
+        if userobj.extern_type != self.name():
             log.warn("userobj:%s extern_type mismatch got:`%s` expected:`%s`"
-                      % (userobj, userobj.extern_type, self.name()))
+                     % (userobj, userobj.extern_type, self.name()))
             return None
 
         user_attrs = {
@@ -69,7 +69,7 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
             "admin": userobj.admin,
             "active": userobj.active,
             "active_from_extern": userobj.active,
-            "extern_name": ""
+            "extern_name": userobj.user_id
         }
 
         log.debug(formatted_json(user_attrs))
