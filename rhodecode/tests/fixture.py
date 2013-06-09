@@ -1,6 +1,7 @@
 """
 Helpers for fixture generation
 """
+from rhodecode.model.user import UserModel
 from rhodecode.tests import *
 from rhodecode.model.db import Repository, User, RepoGroup, UserGroup
 from rhodecode.model.meta import Session
@@ -39,6 +40,22 @@ class Fixture(object):
             perms_new=[],
             enable_locking=False,
             recursive=False
+        )
+        defs.update(custom)
+
+        return defs
+
+    def _get_user_create_params(self, name, **custom):
+        defs = dict(
+            username=name,
+            password='qweqwe',
+            email='%s+test@rhodecode.org' % name,
+            firstname='TestUser',
+            lastname='Test',
+            active=True,
+            admin=False,
+            extern_type='rhodecode',
+            extern_name=None
         )
         defs.update(custom)
 
@@ -110,6 +127,18 @@ class Fixture(object):
         Session().commit()
         gr = RepoGroup.get_by_group_name(gr.group_name)
         return gr
+
+    def create_user(self, name, **kwargs):
+        if 'skip_if_exists' in kwargs:
+            del kwargs['skip_if_exists']
+            user = User.get_by_username(name)
+            if user:
+                return user
+        form_data = self._get_user_create_params(name, **kwargs)
+        user = UserModel().create(form_data)
+        Session().commit()
+        user = User.get_by_username(user.username)
+        return user
 
     def create_user_group(self, name, **kwargs):
         if 'skip_if_exists' in kwargs:
