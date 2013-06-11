@@ -102,16 +102,6 @@ class RhodeCodeAuthPluginBase(object):
         )
         return rcsettings
 
-    def use_fake_password(self):
-        """
-        Return a boolean that indicates whether or not we should set the user's
-        password to a random value when it is authenticated by this plugin.
-        If your plugin provides authentication, then you will generally want this.
-
-        :returns: boolean
-        """
-        raise NotImplementedError("Not implemented in base class")
-
     def user_activation_state(self):
         """
         Defines user activation state when creating new users
@@ -154,6 +144,50 @@ class RhodeCodeAuthPluginBase(object):
             if k not in ret:
                 raise Exception('Missing %s attribute from returned data' % k)
         return ret
+
+
+class RhodeCodeExternalAuthPlugin(RhodeCodeAuthPluginBase):
+    def use_fake_password(self):
+        """
+        Return a boolean that indicates whether or not we should set the user's
+        password to a random value when it is authenticated by this plugin.
+        If your plugin provides authentication, then you will generally want this.
+
+        :returns: boolean
+        """
+        raise NotImplementedError("Not implemented in base class")
+
+    def _authenticate(self, userobj, username, passwd, settings, **kwargs):
+        auth = super(RhodeCodeExternalAuthPlugin, self)._authenticate(
+            userobj, username, passwd, settings, **kwargs)
+        if auth:
+            # if user is not active from our extern type we should fail to authe
+            # this can prevent from creating users in RhodeCode when using
+            # external authentication, but if it's inactive user we shouldn't
+            # create that user anyway
+            if auth['active_from_extern'] is False:
+                log.warning("User %s authenticated against %s, but is inactive"
+                            % (username, self.__module__))
+                return None
+
+            if self.use_fake_password():
+                # Randomize the PW because we don't need it, but don't want
+                # them blank either
+                passwd = PasswordGenerator().gen_password(length=8)
+
+            UserModel().create_or_update(
+                username=auth['username'],
+                password=passwd,
+                email=auth["email"],
+                firstname=auth["firstname"],
+                lastname=auth["lastname"],
+                active=auth["active"],
+                admin=auth["admin"],
+                extern_name=auth["extern_name"],
+                extern_type=self.name()
+            )
+            Session().commit()
+        return auth
 
 
 def loadplugin(plugin):
@@ -203,7 +237,6 @@ def authenticate(username, password, environ=None):
     :returns: None if auth failed, plugin_suer dict if auth is correct
     """
 
-    user_model = UserModel()
     user = User.get_by_username(username)
     if not user:
         user = User.get_by_username(username, case_insensitive=True)
@@ -241,43 +274,9 @@ def authenticate(username, password, environ=None):
                                            plugin_settings,
                                            environ=environ or {})
         if plugin_user:
-            # if user is not active from our extern type we should fail to authe
-            # this can prevent from creating users in RhodeCode when using
-            # external authentication, but if it's inactive user we shouldn't
-            # create that user anyway
-            if plugin_user['active_from_extern'] is False:
-                log.warning("User %s authenticated against %s, but is inactive"
-                            % (username, plugin.__module__))
-                return None
-
-            if plugin.use_fake_password():
-                # Randomize the PW because we don't need it, but don't want
-                # them blank either
-                password = PasswordGenerator().gen_password(length=8)
-
-#             # if external auth tells us something about user active state
-#             # use it, and update our internal RhodeCode user
-#             if plugin_user['active_from_extern'] in [True, False]:
-#                 plugin_user['active'] = plugin_user['active_from_extern']
-
-            # create user mapped from auth plugin, or update existing
-            # This will let us propagate changes from external accounts
-            user_model.create_or_update(
-                username=plugin_user['username'],
-                password=password,
-                email=plugin_user["email"],
-                firstname=plugin_user["firstname"],
-                lastname=plugin_user["lastname"],
-                active=plugin_user["active"],
-                admin=plugin_user["admin"],
-                extern_name=plugin_user["extern_name"],
-                extern_type=plugin_name
-            )
-            Session().commit()
             return plugin_user
-        else:
-            # we failed to Auth because .auth() method didn't return proper
-            # user
-            log.warning("User %s failed to authenticate against %s"
-                        % (username, plugin.__module__))
+
+        # we failed to Auth because .auth() method didn't return proper the user
+        log.warning("User %s failed to authenticate against %s"
+                    % (username, plugin.__module__))
     return None

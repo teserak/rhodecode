@@ -127,7 +127,7 @@ class CrowdServer(object):
         return self._request(url)
 
 
-class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
+class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
     def name(self):
         return "crowd"
 

@@ -40,7 +40,7 @@ pam_lock = threading.Lock()
 log = logging.getLogger(__name__)
 
 
-class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
+class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
     # PAM authnetication can be slow. Repository operations involve a lot of
     # auth calls. Little caching helps speedup push/pull operations significantly
     AUTH_CACHE_TTL = 4

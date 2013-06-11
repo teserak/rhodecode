@@ -32,7 +32,7 @@ from rhodecode.model.db import User
 log = logging.getLogger(__name__)
 
 
-class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
+class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
     def __init__(self):
         pass
 

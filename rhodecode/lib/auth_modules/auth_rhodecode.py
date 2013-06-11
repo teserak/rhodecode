@@ -43,9 +43,6 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
     def settings(self):
         return []
 
-    def use_fake_password(self):
-        return False
-
     @classmethod
     def user_activation_state(cls):
         def_user_perms = User.get_by_username('default').AuthUser.permissions['global']

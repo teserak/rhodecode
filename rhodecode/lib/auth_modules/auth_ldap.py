@@ -171,7 +171,7 @@ class AuthLdap(object):
         return (dn, attrs)
 
 
-class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
+class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
     def __init__(self):
         self._logger = logging.getLogger(__name__)
         self._tls_kind_values = ["PLAIN", "LDAPS", "START_TLS"]
