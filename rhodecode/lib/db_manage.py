@@ -225,6 +225,10 @@ class UpgradeSteps(object):
                 Session().add(r)
         Session().commit()
 
+    def step_15(self):
+        pass
+
+
 class DbManage(object):
     def __init__(self, log_sql, dbconf, root, tests=False, cli_args={}):
         self.dbname = dbconf.split('/')[-1]
