@@ -40,3 +40,4 @@ notifications:
 branches:
   only:
     - dev
+    - master
