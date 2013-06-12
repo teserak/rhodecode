@@ -217,16 +217,16 @@ div.options a {
 }
 
 .truncate {
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     -o-text-overflow: ellipsis;
     -ms-text-overflow: ellipsis;
 }
 
-.truncate.autoexpand:hover{
+.truncate.autoexpand:hover {
     text-overflow: none;
-    overflow:visible;
+    overflow: visible;
 }
 
 a.permalink {
