@@ -34,7 +34,6 @@ import threading
 
 from rhodecode.lib import auth_modules
 from rhodecode.lib.compat import formatted_json
-from rhodecode.model import validators as v
 
 pam_lock = threading.Lock()
 log = logging.getLogger(__name__)
@@ -61,7 +60,7 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
         settings = [
             {
                 "name": "service",
-                "validator": v.UnicodeString(strip=True),
+                "validator": self.validators.UnicodeString(strip=True),
                 "type": "string",
                 "description": "PAM service name to use for authentication",
                 "default": "login",
@@ -69,7 +68,7 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
             },
             {
                 "name": "gecos",
-                "validator": v.UnicodeString(strip=True),
+                "validator": self.validators.UnicodeString(strip=True),
                 "type": "string",
                 "description": "Regex for extracting user name/email etc "
                                "from Unix userinfo",
