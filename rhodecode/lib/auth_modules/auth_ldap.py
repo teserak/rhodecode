@@ -28,10 +28,10 @@ import traceback
 import formencode
 
 from rhodecode.lib import auth_modules
-from rhodecode.lib.compat import json, formatted_json
-from rhodecode.lib.utils2 import str2bool, safe_unicode, safe_str
-from rhodecode.lib.exceptions import LdapConnectionError, LdapUsernameError, \
-    LdapPasswordError, LdapImportError
+from rhodecode.lib.utils2 import safe_unicode, safe_str
+from rhodecode.lib.exceptions import (
+    LdapConnectionError, LdapUsernameError, LdapPasswordError, LdapImportError
+)
 from rhodecode.model.db import User
 
 log = logging.getLogger(__name__)

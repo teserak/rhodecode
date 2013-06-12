@@ -24,9 +24,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-from rhodecode.lib import auth
 from rhodecode.lib import auth_modules
-from rhodecode.lib.compat import json, formatted_json
+from rhodecode.lib.compat import formatted_json
 from rhodecode.model.db import User
 
 
@@ -43,8 +42,7 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
     def settings(self):
         return []
 
-    @classmethod
-    def user_activation_state(cls):
+    def user_activation_state(self):
         def_user_perms = User.get_by_username('default').AuthUser.permissions['global']
         return 'hg.register.auto_activate' in def_user_perms
 
@@ -71,6 +69,7 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
 
         log.debug(formatted_json(user_attrs))
         if userobj.active:
+            from rhodecode.lib import auth
             password_match = auth.RhodeCodeCrypto.hash_check(password, userobj.password)
             if userobj.username == User.DEFAULT_USER and userobj.active:
                 log.info('user %s authenticated correctly as anonymous user' %

@@ -26,7 +26,6 @@
 import logging
 from rhodecode.lib import auth_modules
 from rhodecode.lib.utils2 import str2bool
-from rhodecode.lib.compat import json, formatted_json
 from rhodecode.model.db import User
 
 log = logging.getLogger(__name__)

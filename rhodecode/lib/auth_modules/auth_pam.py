@@ -33,7 +33,7 @@ import socket
 import threading
 
 from rhodecode.lib import auth_modules
-from rhodecode.lib.compat import json, formatted_json
+from rhodecode.lib.compat import formatted_json
 from rhodecode.model import validators as v
 
 pam_lock = threading.Lock()

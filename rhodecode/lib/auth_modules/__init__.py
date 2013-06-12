@@ -265,6 +265,8 @@ def authenticate(username, password, environ=None):
                               % (module, str(e)))
 
         if not plugin.accepts(user):
+            log.debug('Plugin %s does not accept user %s for authentication'
+                      % (module, user))
             continue
 
         # load plugin settings from RhodeCode database
