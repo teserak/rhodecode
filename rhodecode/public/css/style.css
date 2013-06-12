@@ -1311,7 +1311,7 @@ tbody .yui-dt-editable { cursor: pointer }
     border-right: 1px solid #eaeaea;
     border-bottom: 1px solid #eaeaea;
     color: #000;
-    font-size: 11px;
+    font-size: 12px;
     margin: 0;
     padding: 7px 7px 6px;
 }
@@ -1329,7 +1329,7 @@ tbody .yui-dt-editable { cursor: pointer }
     border-style: solid;
     border-width: 1px;
     color: #000000;
-    font-size: 11px;
+    font-size: 12px;
     margin: 0;
     padding: 7px 7px 6px;
 }
@@ -1370,7 +1370,7 @@ input.disabled {
     border-right: 1px solid #eaeaea;
     border-bottom: 1px solid #eaeaea;
     margin: 0 0 0 200px;
-    padding: 10px;
+    padding: 7px 7px 6px;
 }
 
 #content div.box div.form div.fields div.field div.textarea-editor {
@@ -1384,7 +1384,7 @@ input.disabled {
     overflow: hidden;
     background: #FFF;
     color: #000;
-    font-size: 11px;
+    font-size: 12px;
     outline: none;
     border-width: 0;
     margin: 0;
@@ -2697,7 +2697,6 @@ BIN_FILENODE = 6
     padding: 2px 0px 0px 2px;
 }
 .changeset-status-container .changeset-status-lbl {
-    color: rgb(136, 136, 136);
     float: left;
     padding: 3px 4px 0px 0px
 }
@@ -4047,7 +4046,6 @@ div#legend_container table td, div#legend_choices table td {
     -webkit-border-radius: 4px;
     border-radius: 4px;
     border: 0 none;
-    color: #AAAAAA;
     margin-bottom: -4px;
     margin-top: -4px;
     padding-left: 3px;
