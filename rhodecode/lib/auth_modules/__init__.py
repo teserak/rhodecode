@@ -50,6 +50,20 @@ class RhodeCodeAuthPluginBase(object):
         """
         raise NotImplementedError("Not implemented in base class")
 
+    def accepts(self, user):
+        """
+        Checks if this authentication module should accept a request for
+        the current user.
+
+        :returns: boolean
+        """
+        plugin_name = self.name()
+        if user and user.extern_type and user.extern_type != plugin_name:
+            log.debug('User %s should authenticate using %s this is %s, skipping'
+                      % (user, user.extern_type, plugin_name))
+            return False
+        return True
+
     def settings(self):
         """
         Return a list of the form:
@@ -250,13 +264,11 @@ def authenticate(username, password, environ=None):
             raise ImportError('Failed to load authentication module %s : %s'
                               % (module, str(e)))
 
-        plugin_name = plugin.name()
-        if user and user.extern_type and user.extern_type != plugin_name:
-            log.debug('User %s should authenticate using %s this is %s, skipping'
-                      % (user, user.extern_type, plugin_name))
+        if not plugin.accepts(user):
             continue
 
         # load plugin settings from RhodeCode database
+        plugin_name = plugin.name()
         plugin_settings = {}
         for v in plugin.plugin_settings():
             conf_key = "auth_%s_%s" % (plugin_name, v["name"])
