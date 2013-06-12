@@ -642,3 +642,71 @@ def suuid(url=None, truncate_to=22, alphabet=None):
         output.append(_ALPHABET[digit])
         unique_id = int(unique_id / alphabet_length)
     return "".join(output)[:truncate_to]
+
+
+class OptionalAttr(object):
+    """
+    Special Optional Option that defines other attribute. Example::
+
+        def test(apiuser, userid=Optional(OAttr('apiuser')):
+            user = Optional.extract(userid)
+            # calls
+
+    """
+
+    def __init__(self, attr_name):
+        self.attr_name = attr_name
+
+    def __repr__(self):
+        return '<OptionalAttr:%s>' % self.attr_name
+
+    def __call__(self):
+        return self
+
+#alias
+OAttr = OptionalAttr
+
+
+class Optional(object):
+    """
+    Defines an optional parameter::
+
+        param = param.getval() if isinstance(param, Optional) else param
+        param = param() if isinstance(param, Optional) else param
+
+    is equivalent of::
+
+        param = Optional.extract(param)
+
+    """
+
+    def __init__(self, type_):
+        self.type_ = type_
+
+    def __repr__(self):
+        return '<Optional:%s>' % self.type_.__repr__()
+
+    def __call__(self):
+        return self.getval()
+
+    def getval(self):
+        """
+        returns value from this Optional instance
+        """
+        if isinstance(self.type_, OAttr):
+            # use params name
+            return self.type_.attr_name
+        return self.type_
+
+    @classmethod
+    def extract(cls, val):
+        """
+        Extracts value from Optional() instance
+
+        :param val:
+        :return: original value if it's not Optional instance else
+            value of instance
+        """
+        if isinstance(val, cls):
+            return val.getval()
+        return val
