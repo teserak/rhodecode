@@ -33,10 +33,10 @@ from sqlalchemy import or_
 from rhodecode.controllers.api import JSONRPCController, JSONRPCError
 from rhodecode.lib.auth import (
     PasswordGenerator, AuthUser, HasPermissionAllDecorator,
-    HasPermissionAnyDecorator, HasPermissionAnyApi, HasRepoPermissionAnyApi
-)
+    HasPermissionAnyDecorator, HasPermissionAnyApi, HasRepoPermissionAnyApi)
 from rhodecode.lib.utils import map_groups, repo2db_mapper
-from rhodecode.lib.utils2 import str2bool, time_to_datetime, safe_int, Optional, Oattr
+from rhodecode.lib.utils2 import (
+    str2bool, time_to_datetime, safe_int, Optional, OAttr)
 from rhodecode.model.meta import Session
 from rhodecode.model.repo_group import RepoGroupModel
 from rhodecode.model.scm import ScmModel
@@ -48,7 +48,8 @@ from rhodecode.model.db import (
     Repository, RhodeCodeSetting, UserIpMap, Permission, User, Gist,
     RepoGroup)
 from rhodecode.lib.compat import json
-from rhodecode.lib.exceptions import DefaultUserException, UserGroupsAssignedException
+from rhodecode.lib.exceptions import (
+    DefaultUserException, UserGroupsAssignedException)
 
 log = logging.getLogger(__name__)
 
