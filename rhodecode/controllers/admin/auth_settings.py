@@ -120,11 +120,11 @@ class AuthSettingsController(BaseController):
                     # we want to store it comma separated inside our settings
                     v = ','.join(v)
                 log.debug("%s = %s" % (k, str(v)))
-                setting = RhodeCodeSetting.get_by_name_or_create(k, v)
+                setting = RhodeCodeSetting.create_or_update(k, v)
                 Session().add(setting)
             Session().commit()
             h.flash(_('Auth settings updated successfully'),
-                    category='success')
+                       category='success')
         except formencode.Invalid, errors:
             log.error(traceback.format_exc())
             e = errors.error_dict or {}

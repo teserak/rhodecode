@@ -2,6 +2,7 @@
 Authentication modules
 """
 import logging
+import traceback
 
 from rhodecode.lib.compat import importlib
 from rhodecode.lib.utils2 import str2bool
@@ -169,7 +170,14 @@ def loadplugin(plugin):
     """
     log.debug("Importing %s" % plugin)
     PLUGIN_CLASS_NAME = "RhodeCodeAuthPlugin"
-    module = importlib.import_module(plugin)
+    try:
+        module = importlib.import_module(plugin)
+    except (ImportError, TypeError):
+        log.error(traceback.format_exc())
+        # TODO: make this more error prone, if by some accident we screw up
+        # the plugin name, the crash is preatty bad and hard to recover
+        raise
+
     log.debug("Loaded auth plugin from %s (module:%s, file:%s)"
               % (plugin, module.__name__, module.__file__))
 

@@ -48,8 +48,7 @@ from rhodecode.lib.vcs.utils.lazy import LazyProperty
 from rhodecode.lib.vcs.backends.base import EmptyChangeset
 
 from rhodecode.lib.utils2 import str2bool, safe_str, get_changeset_safe, \
-    safe_unicode, remove_suffix, remove_prefix, time_to_datetime, _set_extras,\
-    aslist
+    safe_unicode, remove_prefix, time_to_datetime, aslist, Optional
 from rhodecode.lib.compat import json
 from rhodecode.lib.caching_query import FromCache
 
@@ -226,14 +225,29 @@ class RhodeCodeSetting(Base, BaseModel):
         return res
 
     @classmethod
-    def create_or_update(cls, key, val='', type='unicode'):
+    def create_or_update(cls, key, val=Optional(''), type=Optional('unicode')):
+        """
+        Creates or updates RhodeCode setting. If updates is triggered it will only
+        update parameters that are explicityl set Optional instance will be skipped
+
+        :param key:
+        :param val:
+        :param type:
+        :return:
+        """
         res = cls.get_by_name(key)
         if not res:
+            val = Optional.extract(val)
+            type = Optional.extract(type)
             res = cls(key, val, type)
         else:
             res.app_settings_name = key
-            res.app_settings_value = val
-            res.app_settings_type = type
+            if not isinstance(val, Optional):
+                # update if set
+                res.app_settings_value = val
+            if not isinstance(type, Optional):
+                # update if set
+                res.app_settings_type = type
         return res
 
     @classmethod
