@@ -106,13 +106,12 @@ class RhodeCodeAuthPluginBase(object):
         """
 
         rcsettings = self.settings()
-        rcsettings.insert(0,
-            {
-                "name": "enabled",
-                "validator": self.validators.StringBoolean(if_missing=False),
-                "type": "bool",
-                "description": "Enable or Disable this Authentication Plugin",
-                "formname": "Enabled"
+        rcsettings.insert(0, {
+            "name": "enabled",
+            "validator": self.validators.StringBoolean(if_missing=False),
+            "type": "bool",
+            "description": "Enable or Disable this Authentication Plugin",
+            "formname": "Enabled"
             }
         )
         return rcsettings
