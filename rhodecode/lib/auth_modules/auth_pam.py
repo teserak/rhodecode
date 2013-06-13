@@ -99,29 +99,29 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
         else:
             log.debug("Using cached auth for user: %s" % (username,))
 
-        pamuser = {
-            "firstname": username, "lastname": "",
-            "email": "%s@%s" % (username, socket.gethostname()),
-            "active": True,
-            "groups": [g.gr_name for g in grp.getgrall() if
-                       username in g.gr_mem], "extern_name": None,
-            "admin": userobj.admin if userobj else False
+        user_attrs = {
+            'username': username,
+            'firstname': "",
+            'lastname': "",
+            'groups': [g.gr_name for g in grp.getgrall() if username in g.gr_mem],
+            'email': "%s@%s" % (username, socket.gethostname()),
+            'admin': False,
+            'active': True,
+            "active_from_extern": None,
+            'extern_name': None
         }
-
-        # For PAM auth we want admin privilege managed by RhodeCode
-        # Set extern_name to None - enabling admin checkbox
-        # get current admin status, if user already exists
 
         try:
             user_data = pwd.getpwnam(username)
             regex = settings["gecos"]
             match = re.search(regex, user_data.pw_gecos)
             if match:
-                pamuser["firstname"] = match.group('first_name')
-                pamuser["lastname"] = match.group('last_name')
+                user_attrs["firstname"] = match.group('first_name')
+                user_attrs["lastname"] = match.group('last_name')
         except Exception:
             log.warn("Cannot extract additional info for PAM user")
             pass
 
-        log.debug("pamuser: \n%s" % formatted_json(pamuser))
-        return pamuser
+        log.debug("pamuser: \n%s" % formatted_json(user_attrs))
+        log.info('user %s authenticated correctly' % user_attrs['username'])
+        return user_attrs
