@@ -110,6 +110,7 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
             username = environ.get(header)
             log.debug('extracted %s:%s' % (header, username))
 
+        org_username = username
         if username and str2bool(settings.get('clean_username')):
             log.debug('Received username %s from container' % username)
             username = self._clean_username(username)
@@ -127,7 +128,7 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
             'admin': False,
             'active': True,
             'active_from_extern': True,
-            'extern_name': 'container'
+            'extern_name': org_username
         }
 
         log.info('user %s authenticated correctly' % user_attrs['username'])

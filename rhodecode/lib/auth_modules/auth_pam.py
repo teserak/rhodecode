@@ -108,7 +108,7 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
             'admin': False,
             'active': True,
             "active_from_extern": None,
-            'extern_name': None
+            'extern_name': username
         }
 
         try:
