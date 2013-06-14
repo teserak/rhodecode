@@ -316,7 +316,13 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
             'attr_login': settings.get('attr_login'),
             'ldap_version': 3,
             }
+        if kwargs['bind_dn'] and not kwargs['bind_pass']:
+            log.debug('Using dynamic binding.')
+            kwargs['bind_dn'] = kwargs['bind_dn'].replace(
+                '$login', username)
+            kwargs['bind_pass'] = password
         log.debug('Checking for ldap authentication')
+
         try:
             aldap = AuthLdap(**kwargs)
             (user_dn, ldap_attrs) = aldap.authenticate_ldap(username,
