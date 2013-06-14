@@ -156,17 +156,15 @@ class UserGroupModel(BaseModel):
         :param user_group:
         :param force:
         """
+        user_group = self._get_user_group(user_group)
         try:
-            user_group = self._get_user_group(user_group)
-
             # check if this group is not assigned to repo
             assigned_groups = UserGroupRepoToPerm.query()\
                 .filter(UserGroupRepoToPerm.users_group == user_group).all()
 
             if assigned_groups and not force:
-                raise UserGroupsAssignedException('RepoGroup assigned to %s' %
-                                                   assigned_groups)
-
+                raise UserGroupsAssignedException(
+                    'RepoGroup assigned to %s' % assigned_groups)
             self.sa.delete(user_group)
         except Exception:
             log.error(traceback.format_exc())

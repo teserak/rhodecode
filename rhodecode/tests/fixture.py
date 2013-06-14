@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Helpers for fixture generation
 """
@@ -128,6 +129,10 @@ class Fixture(object):
         gr = RepoGroup.get_by_group_name(gr.group_name)
         return gr
 
+    def destroy_repo_group(self, repogroupid):
+        RepoGroupModel().delete(repogroupid)
+        Session().commit()
+
     def create_user(self, name, **kwargs):
         if 'skip_if_exists' in kwargs:
             del kwargs['skip_if_exists']
@@ -139,6 +144,10 @@ class Fixture(object):
         Session().commit()
         user = User.get_by_username(user.username)
         return user
+
+    def destroy_user(self, userid):
+        UserModel().delete(userid)
+        Session().commit()
 
     def create_user_group(self, name, **kwargs):
         if 'skip_if_exists' in kwargs:
@@ -153,6 +162,10 @@ class Fixture(object):
         Session().commit()
         user_group = UserGroup.get_by_group_name(user_group.users_group_name)
         return user_group
+
+    def destroy_user_group(self, usergroupid):
+        UserGroupModel().delete(user_group=usergroupid, force=True)
+        Session().commit()
 
     def create_gist(self, **kwargs):
         form_data = {

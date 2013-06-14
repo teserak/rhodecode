@@ -767,7 +767,6 @@ class ApiController(JSONRPCController):
                 user=user.get_api_data()
             )
         except DefaultUserException:
-
             log.error(traceback.format_exc())
             raise JSONRPCError('editing default user is forbidden')
         except Exception:
@@ -1001,7 +1000,6 @@ class ApiController(JSONRPCController):
                 user_group=None
             )
         except UserGroupsAssignedException, e:
-
             log.error(traceback.format_exc())
             raise JSONRPCError(str(e))
         except Exception:
