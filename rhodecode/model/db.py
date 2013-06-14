@@ -48,7 +48,7 @@ from rhodecode.lib.vcs.utils.lazy import LazyProperty
 from rhodecode.lib.vcs.backends.base import EmptyChangeset
 
 from rhodecode.lib.utils2 import str2bool, safe_str, get_changeset_safe, \
-    safe_unicode, remove_prefix, time_to_datetime, aslist, Optional
+    safe_unicode, remove_prefix, time_to_datetime, aslist, Optional, safe_int
 from rhodecode.lib.compat import json
 from rhodecode.lib.caching_query import FromCache
 
@@ -154,6 +154,7 @@ class BaseModel(object):
 class RhodeCodeSetting(Base, BaseModel):
     SETTINGS_TYPES = {
         'str': safe_str,
+        'int': safe_int,
         'unicode': safe_unicode,
         'bool': str2bool,
         'list': functools.partial(aslist, sep=',')
