@@ -35,7 +35,6 @@ import threading
 from rhodecode.lib import auth_modules
 from rhodecode.lib.compat import formatted_json
 
-pam_lock = threading.Lock()
 log = logging.getLogger(__name__)
 
 
@@ -45,6 +44,7 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
     AUTH_CACHE_TTL = 4
     # Cache to store PAM authenticated users
     _auth_cache = dict()
+    _pam_lock = threading.Lock()
 
     def __init__(self):
         ts = time.time()
@@ -86,14 +86,17 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
 
         if username not in RhodeCodeAuthPlugin._auth_cache:
             # Need lock here, as PAM authentication is not thread safe
-            pam_lock.acquire()
+            self._pam_lock.acquire()
             try:
-                authResult = pam.authenticate(username, password, settings["service"])
-                RhodeCodeAuthPlugin._auth_cache[username] = time.time()
+                auth_result = pam.authenticate(username, password,
+                                               settings["service"])
+                # cache result only if we properly authenticated
+                if auth_result:
+                    RhodeCodeAuthPlugin._auth_cache[username] = time.time()
             finally:
-                pam_lock.release()
+                self._pam_lock.release()
 
-            if not authResult:
+            if not auth_result:
                 log.error("PAM was unable to authenticate user: %s" % (username,))
                 return None
         else:
