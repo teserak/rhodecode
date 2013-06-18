@@ -37,21 +37,23 @@ from rhodecode.lib.compat import formatted_json
 
 log = logging.getLogger(__name__)
 
+# Cache to store PAM authenticated users
+_auth_cache = dict()
+_pam_lock = threading.Lock()
+
 
 class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
     # PAM authnetication can be slow. Repository operations involve a lot of
     # auth calls. Little caching helps speedup push/pull operations significantly
     AUTH_CACHE_TTL = 4
-    # Cache to store PAM authenticated users
-    _auth_cache = dict()
-    _pam_lock = threading.Lock()
 
     def __init__(self):
+        global _auth_cache
         ts = time.time()
-        clearedCache = dict(
-            [(k, v) for (k, v) in RhodeCodeAuthPlugin._auth_cache.items() if
+        cleared_cache = dict(
+            [(k, v) for (k, v) in _auth_cache.items() if
              (v + RhodeCodeAuthPlugin.AUTH_CACHE_TTL > ts)])
-        RhodeCodeAuthPlugin._auth_cache = clearedCache
+        _auth_cache = cleared_cache
 
     def name(self):
         return "pam"
@@ -84,17 +86,17 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
     def auth(self, userobj, username, password, settings, **kwargs):
         log.debug("Authenticating user using PAM")
 
-        if username not in RhodeCodeAuthPlugin._auth_cache:
+        if username not in _auth_cache:
             # Need lock here, as PAM authentication is not thread safe
-            self._pam_lock.acquire()
+            _pam_lock.acquire()
             try:
                 auth_result = pam.authenticate(username, password,
                                                settings["service"])
                 # cache result only if we properly authenticated
                 if auth_result:
-                    RhodeCodeAuthPlugin._auth_cache[username] = time.time()
+                    _auth_cache[username] = time.time()
             finally:
-                self._pam_lock.release()
+                _pam_lock.release()
 
             if not auth_result:
                 log.error("PAM was unable to authenticate user: %s" % (username,))
