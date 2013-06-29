@@ -644,6 +644,18 @@ def suuid(url=None, truncate_to=22, alphabet=None):
     return "".join(output)[:truncate_to]
 
 
+def get_current_rhodecode_user():
+    """
+    Gets rhodecode user from threadlocal tmpl_context variable if it's
+    defined, else returns None.
+    """
+    from pylons import tmpl_context
+    if hasattr(tmpl_context, 'rhodecode_user'):
+        return tmpl_context.rhodecode_user
+
+    return None
+
+
 class OptionalAttr(object):
     """
     Special Optional Option that defines other attribute. Example::

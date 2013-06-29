@@ -32,7 +32,7 @@ from datetime import datetime
 from rhodecode.lib.vcs.backends import get_backend
 from rhodecode.lib.compat import json
 from rhodecode.lib.utils2 import LazyProperty, safe_str, safe_unicode, \
-    remove_prefix, obfuscate_url_pw
+    remove_prefix, obfuscate_url_pw, get_current_rhodecode_user
 from rhodecode.lib.caching_query import FromCache
 from rhodecode.lib.hooks import log_create_repository, log_delete_repository
 
@@ -49,6 +49,7 @@ log = logging.getLogger(__name__)
 
 
 class RepoModel(BaseModel):
+
     cls = Repository
     URL_SEPARATOR = Repository.url_sep()
 
@@ -116,7 +117,6 @@ class RepoModel(BaseModel):
         :param user:
         """
         from rhodecode.lib.auth import AuthUser
-
         user = self._get_user(user)
         repos = AuthUser(user_id=user.user_id).permissions['repositories']
         access_check = lambda r: r[1] in ['repository.read',
@@ -510,10 +510,9 @@ class RepoModel(BaseModel):
         :param cur_user:
         """
         from rhodecode.lib.celerylib import tasks, run_task
-
         run_task(tasks.create_repo_fork, form_data, cur_user)
 
-    def delete(self, repo, forks=None, fs_remove=True):
+    def delete(self, repo, forks=None, fs_remove=True, cur_user=None):
         """
         Delete given repository, forks parameter defines what do do with
         attached forks. Throws AttachedForksError if deleted repo has attached
@@ -523,6 +522,8 @@ class RepoModel(BaseModel):
         :param forks: str 'delete' or 'detach'
         :param fs_remove: remove(archive) repo from filesystem
         """
+        if not cur_user:
+            cur_user = getattr(get_current_rhodecode_user(), 'username', None)
         repo = self._get_repo(repo)
         if repo:
             if forks == 'detach':
@@ -544,7 +545,7 @@ class RepoModel(BaseModel):
                 else:
                     log.debug('skipping removal from filesystem')
                 log_delete_repository(old_repo_dict,
-                                      deleted_by=owner.username)
+                                      deleted_by=cur_user)
             except Exception:
                 log.error(traceback.format_exc())
                 raise

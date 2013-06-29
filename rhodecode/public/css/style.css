@@ -481,11 +481,11 @@ div:hover > a.permalink {
 }
 
 #header #header-inner #quick li ul li a.private_repo, #header #header-inner #quick li ul li a.private_repo:hover {
-    background-image: url("../images/icons/lock.png")
+    background-image: url("../images/icons/private_repo.png")
 }
 
 #header #header-inner #quick li ul li a.public_repo, #header #header-inner #quick li ul li a.public_repo:hover {
-    background-image: url("../images/icons/lock_open.png");
+    background-image: url("../images/icons/public_repo.png");
 }
 
 #header #header-inner #quick li ul li a.hg, #header #header-inner #quick li ul li a.hg:hover {
@@ -3111,6 +3111,7 @@ table.code-browser .submodule-dir {
     border-radius: 8px 8px 8px 8px;
     box-shadow: 0 2px 2px rgba(0, 0, 0, 0.6);
     -webkit-box-shadow: 0 2px 2px rgba(0, 0, 0, 0.6);
+    z-index: 100000;
 }
 
 .hl-tip-box {
@@ -3696,6 +3697,10 @@ div.gravatar img {
     filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#fbb450', endColorstr='#f89406', GradientType=0);
     border-color: #f89406 #f89406 #ad6704;
     border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+}
+
+label.disabled {
+    color: #aaa;
 }
 
 .ui-btn.blue.hidden {
@@ -4653,7 +4658,7 @@ PULL REQUESTS
     font-weight: bold;
 }
 
-h3.closed,
+div.pr-details-title.closed,
 #pullrequests_container li.closed a
  {
     color: #555;
@@ -4662,6 +4667,11 @@ h3.closed,
 
 div.pr-title {
     font-size: 1.6em;
+}
+div.pr-details-title {
+    font-size: 1.6em;
+    margin: 0px 20px 0px 20px;
+    padding: 5px 0px 5px 10px;
 }
 
 div.pr {

@@ -262,6 +262,7 @@ class BaseController(WSGIController):
         c.rhodecode_version = __version__
         c.rhodecode_instanceid = config.get('instance_id')
         c.rhodecode_name = config.get('rhodecode_title')
+        c.rhodecode_bugtracker = config.get('bugtracker', 'http://bitbucket.org/marcinkuzminski/rhodecode/issues')
         c.use_gravatar = str2bool(config.get('use_gravatar'))
         c.ga_code = config.get('rhodecode_ga_code')
         # Visual options
@@ -278,6 +279,7 @@ class BaseController(WSGIController):
         ## INI stored
         self.cut_off_limit = int(config.get('cut_off_limit'))
         c.visual.allow_repo_location_change = str2bool(config.get('allow_repo_location_change', True))
+        c.visual.allow_custom_hooks_settings = str2bool(config.get('allow_custom_hooks_settings', True))
 
         c.repo_name = get_repo_slug(request)  # can be empty
         c.backends = BACKENDS.keys()

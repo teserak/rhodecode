@@ -54,7 +54,7 @@ class CompareController(BaseRepoController):
     def __before__(self):
         super(CompareController, self).__before__()
 
-    def __get_cs_or_redirect(self, rev, repo, redirect_after=True,
+    def __get_rev_or_redirect(self, ref, repo, redirect_after=True,
                              partial=False):
         """
         Safe way to get changeset if error occur it redirects to changeset with
@@ -65,9 +65,23 @@ class CompareController(BaseRepoController):
         :param repo: repo instance
         """
 
+        rev = ref[1] # default and used for git
+        if repo.scm_instance.alias == 'hg':
+            # lookup up the exact node id
+            _revset_predicates = {
+                    'branch': 'branch',
+                    'book': 'bookmark',
+                    'tag': 'tag',
+                    'rev': 'id',
+                }
+            rev_spec = "max(%s(%%s))" % _revset_predicates[ref[0]]
+            revs = repo.scm_instance._repo.revs(rev_spec, safe_str(ref[1]))
+            if revs:
+                rev = revs[-1]
+            # else: TODO: just report 'not found'
+
         try:
-            type_, rev = rev
-            return repo.scm_instance.get_changeset(rev)
+            return repo.scm_instance.get_changeset(rev).raw_id
         except EmptyRepositoryError, e:
             if not redirect_after:
                 return None
@@ -82,37 +96,20 @@ class CompareController(BaseRepoController):
                 redirect(h.url('summary_home', repo_name=repo.repo_name))
             raise HTTPBadRequest()
 
-    def _get_changesets(self, alias, org_repo, org_ref, other_repo, other_ref, merge):
+    def _get_changesets(self, alias, org_repo, org_rev, other_repo, other_rev, merge):
         """
-        Returns a list of changesets that can be merged from org_repo@org_ref
-        to other_repo@other_ref ... and the ancestor that would be used for merge
-
-        :param org_repo:
-        :param org_ref:
-        :param other_repo:
-        :param other_ref:
-        :param tmp:
+        Returns a list of changesets that can be merged from org_repo@org_rev
+        to other_repo@other_rev ... and the ancestor that would be used for merge
         """
 
         ancestor = None
 
-        if alias == 'hg':
-            # lookup up the exact node id
-            _revset_predicates = {
-                    'branch': 'branch',
-                    'book': 'bookmark',
-                    'tag': 'tag',
-                    'rev': 'id',
-                }
+        if org_rev == other_rev:
+            changesets = []
+            if merge:
+                ancestor = org_rev
 
-            org_rev_spec = "max(%s(%%s))" % _revset_predicates[org_ref[0]]
-            org_revs = org_repo._repo.revs(org_rev_spec, safe_str(org_ref[1]))
-            org_rev = org_repo._repo[org_revs[-1] if org_revs else -1].hex()
-
-            other_revs_spec = "max(%s(%%s))" % _revset_predicates[other_ref[0]]
-            other_revs = other_repo._repo.revs(other_revs_spec, safe_str(other_ref[1]))
-            other_rev = other_repo._repo[other_revs[-1] if other_revs else -1].hex()
-
+        elif alias == 'hg':
             #case two independent repos
             if org_repo != other_repo:
                 hgrepo = unionrepo.unionrepository(other_repo.baseui,
@@ -147,7 +144,7 @@ class CompareController(BaseRepoController):
 
             so, se = org_repo.run_git_command(
                 'log --reverse --pretty="format: %%H" -s -p %s..%s'
-                    % (org_ref[1], other_ref[1])
+                    % (org_rev, other_rev)
             )
             changesets = [org_repo.get_changeset(cs)
                           for cs in re.findall(r'[0-9a-fA-F]{40}', so)]
@@ -205,8 +202,8 @@ class CompareController(BaseRepoController):
             log.error('compare of two different kind of remote repos not available')
             raise HTTPNotFound
 
-        self.__get_cs_or_redirect(rev=org_ref, repo=org_repo, partial=partial)
-        self.__get_cs_or_redirect(rev=other_ref, repo=other_repo, partial=partial)
+        org_rev = self.__get_rev_or_redirect(ref=org_ref, repo=org_repo, partial=partial)
+        other_rev = self.__get_rev_or_redirect(ref=other_ref, repo=other_repo, partial=partial)
 
         c.org_repo = org_repo
         c.other_repo = other_repo
@@ -216,14 +213,14 @@ class CompareController(BaseRepoController):
         c.other_ref_type = other_ref[0]
 
         c.cs_ranges, c.ancestor = self._get_changesets(org_repo.scm_instance.alias,
-                                                       org_repo.scm_instance, org_ref,
-                                                       other_repo.scm_instance, other_ref,
+                                                       org_repo.scm_instance, org_rev,
+                                                       other_repo.scm_instance, other_rev,
                                                        merge)
 
         c.statuses = c.rhodecode_db_repo.statuses([x.raw_id for x in
                                                    c.cs_ranges])
-        if not c.ancestor:
-            log.warning('Unable to find ancestor revision')
+        if merge and not c.ancestor:
+            log.error('Unable to find ancestor revision')
 
         if partial:
             return render('compare/compare_cs.html')
@@ -235,14 +232,14 @@ class CompareController(BaseRepoController):
             # Make the diff on the other repo (which is known to have other_ref)
             log.debug('Using ancestor %s as org_ref instead of %s'
                       % (c.ancestor, org_ref))
-            org_ref = ('rev', c.ancestor)
+            org_rev = c.ancestor
             org_repo = other_repo
 
         diff_limit = self.cut_off_limit if not c.fulldiff else None
 
         log.debug('running diff between %s and %s in %s'
-                  % (org_ref, other_ref, org_repo.scm_instance.path))
-        txtdiff = org_repo.scm_instance.get_diff(rev1=safe_str(org_ref[1]), rev2=safe_str(other_ref[1]))
+                  % (org_rev, other_rev, org_repo.scm_instance.path))
+        txtdiff = org_repo.scm_instance.get_diff(rev1=org_rev, rev2=other_rev)
 
         diff_processor = diffs.DiffProcessor(txtdiff or '', format='gitdiff',
                                              diff_limit=diff_limit)
