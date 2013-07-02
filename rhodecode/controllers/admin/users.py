@@ -39,6 +39,8 @@ from rhodecode.lib.exceptions import DefaultUserException, \
 from rhodecode.lib import helpers as h
 from rhodecode.lib.auth import LoginRequired, HasPermissionAllDecorator, \
     AuthUser
+import rhodecode.lib.auth_modules.auth_rhodecode
+from rhodecode.lib import auth_modules
 from rhodecode.lib.base import BaseController, render
 
 from rhodecode.model.db import User, UserEmailMap, UserIpMap, UserToPerm
@@ -119,7 +121,7 @@ class UsersController(BaseController):
     def create(self):
         """POST /users: Create a new item"""
         # url('users')
-
+        c.default_extern_type = auth_modules.auth_rhodecode.RhodeCodeAuthPlugin.name
         user_model = UserModel()
         user_form = UserForm()()
         try:
@@ -149,6 +151,7 @@ class UsersController(BaseController):
     def new(self, format='html'):
         """GET /users/new: Form to create a new item"""
         # url('new_user')
+        c.default_extern_type = auth_modules.auth_rhodecode.RhodeCodeAuthPlugin.name
         return render('admin/users/user_add.html')
 
     def update(self, id):

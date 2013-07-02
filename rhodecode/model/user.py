@@ -94,7 +94,6 @@ class UserModel(BaseModel):
         }
         # raises UserCreationError if it's not allowed
         check_allowed_create_user(user_data, cur_user)
-
         from rhodecode.lib.auth import get_crypt_password
         try:
             new_user = User()
