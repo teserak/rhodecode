@@ -22,6 +22,7 @@ from rhodecode.lib.utils2 import str2bool, safe_unicode, AttributeDict,\
 from rhodecode.lib import auth_modules
 from rhodecode.lib.auth import AuthUser, HasPermissionAnyMiddleware, CookieStoreWrapper
 from rhodecode.lib.utils import get_repo_slug
+from rhodecode.lib.exceptions import UserCreationError
 from rhodecode.model import meta
 
 from rhodecode.model.db import Repository, RhodeCodeUi, User, RhodeCodeSetting
@@ -299,12 +300,23 @@ class BaseController(WSGIController):
             api_key = request.GET.get('api_key')
 
             if api_key:
+				# when using API_KEY we are sure user exists.
                 auth_user = AuthUser(api_key=api_key, ip_addr=self.ip_addr)
                 authenticated = False
             else:
                 cookie_store = CookieStoreWrapper(session.get('rhodecode_user'))
-                auth_user = AuthUser(user_id=cookie_store.get('user_id', None),
-                                     ip_addr=self.ip_addr)
+                try:
+                    auth_user = AuthUser(user_id=cookie_store.get('user_id', None),
+                                         ip_addr=self.ip_addr)
+                except UserCreationError, e:
+                    from rhodecode.lib import helpers as h
+                    h.flash(e, 'error')
+                    # container auth or other auth functions that create users on
+                    # the fly can throw this exception signaling that there's issue
+                    # with user creation, explanation should be provided in
+                    # Exception itself
+                    auth_user = AuthUser(ip_addr=self.ip_addr)
+
                 authenticated = cookie_store.get('is_authenticated')
 
             if not auth_user.is_authenticated and auth_user.user_id is not None:

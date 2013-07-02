@@ -37,6 +37,7 @@ from pylons import request, response, session, tmpl_context as c, url
 import rhodecode.lib.helpers as h
 from rhodecode.lib.auth import AuthUser, HasPermissionAnyDecorator
 from rhodecode.lib.base import BaseController, render
+from rhodecode.lib.exceptions import UserCreationError
 from rhodecode.model.db import User, RhodeCodeSetting
 from rhodecode.model.forms import LoginForm, RegisterForm, PasswordResetForm
 from rhodecode.model.user import UserModel
@@ -125,6 +126,12 @@ class LoginController(BaseController):
                     errors=errors.error_dict or {},
                     prefix_error=False,
                     encoding="UTF-8")
+            except UserCreationError, e:
+                # container auth or other auth functions that create users on
+                # the fly can throw this exception signaling that there's issue
+                # with user creation, explanation should be provided in
+                # Exception itself
+                h.flash(e, 'error')
 
         # check if we use container plugin, and try to login using it.
         auth_plugins = RhodeCodeSetting.get_auth_plugins()
@@ -160,6 +167,12 @@ class LoginController(BaseController):
                     errors=errors.error_dict or {},
                     prefix_error=False,
                     encoding="UTF-8")
+            except UserCreationError, e:
+                # container auth or other auth functions that create users on
+                # the fly can throw this exception signaling that there's issue
+                # with user creation, explanation should be provided in
+                # Exception itself
+                h.flash(e, 'error')
 
         return render('/register.html')
 
