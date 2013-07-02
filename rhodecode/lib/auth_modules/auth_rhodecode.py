@@ -25,7 +25,7 @@
 
 import logging
 from rhodecode.lib import auth_modules
-from rhodecode.lib.compat import formatted_json
+from rhodecode.lib.compat import formatted_json, hybrid_property
 from rhodecode.model.db import User
 
 
@@ -36,6 +36,7 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
     def __init__(self):
         pass
 
+    @hybrid_property
     def name(self):
         return "rhodecode"
 
@@ -50,9 +51,9 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeAuthPluginBase):
         if not userobj:
             log.debug('userobj was:%s skipping' % (userobj, ))
             return None
-        if userobj.extern_type != self.name():
+        if userobj.extern_type != self.name:
             log.warn("userobj:%s extern_type mismatch got:`%s` expected:`%s`"
-                     % (userobj, userobj.extern_type, self.name()))
+                     % (userobj, userobj.extern_type, self.name))
             return None
 
         user_attrs = {

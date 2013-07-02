@@ -7,12 +7,11 @@ import traceback
 
 from rhodecode.lib.compat import importlib
 from rhodecode.lib.utils2 import str2bool
-from rhodecode.lib.compat import formatted_json
+from rhodecode.lib.compat import formatted_json, hybrid_property
 from rhodecode.lib.auth import PasswordGenerator
 from rhodecode.model.user import UserModel
 from rhodecode.model.db import RhodeCodeSetting, User
 from rhodecode.model.meta import Session
-
 log = logging.getLogger(__name__)
 
 
@@ -43,6 +42,7 @@ class RhodeCodeAuthPluginBase(object):
                 return getattr(v, name)
         return ProxyGet()
 
+    @hybrid_property
     def name(self):
         """
         Returns the name of this authentication plugin.
@@ -58,7 +58,7 @@ class RhodeCodeAuthPluginBase(object):
 
         :returns: boolean
         """
-        plugin_name = self.name()
+        plugin_name = self.name
         if user and user.extern_type and user.extern_type != plugin_name:
             log.debug('User %s should authenticate using %s this is %s, skipping'
                       % (user, user.extern_type, plugin_name))
@@ -198,7 +198,7 @@ class RhodeCodeExternalAuthPlugin(RhodeCodeAuthPluginBase):
                 active=auth["active"],
                 admin=auth["admin"],
                 extern_name=auth["extern_name"],
-                extern_type=self.name()
+                extern_type=self.name
             )
             Session().commit()
         return auth
@@ -270,7 +270,7 @@ def authenticate(username, password, environ=None):
             continue
 
         # load plugin settings from RhodeCode database
-        plugin_name = plugin.name()
+        plugin_name = plugin.name
         plugin_settings = {}
         for v in plugin.plugin_settings():
             conf_key = "auth_%s_%s" % (plugin_name, v["name"])

@@ -300,7 +300,7 @@ class BaseController(WSGIController):
             api_key = request.GET.get('api_key')
 
             if api_key:
-				# when using API_KEY we are sure user exists.
+                # when using API_KEY we are sure user exists.
                 auth_user = AuthUser(api_key=api_key, ip_addr=self.ip_addr)
                 authenticated = False
             else:

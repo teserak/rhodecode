@@ -860,7 +860,7 @@ def ValidAuthPlugins():
             try:
                 for module in module_list:
                     plugin = auth_modules.loadplugin(module)
-                    plugin_name = plugin.name()
+                    plugin_name = plugin.name
                     if plugin_name in unique_names:
                         msg = M(self, 'import_duplicate', state,
                                 loaded=unique_names[plugin_name],

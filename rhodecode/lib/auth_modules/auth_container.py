@@ -26,6 +26,7 @@
 import logging
 from rhodecode.lib import auth_modules
 from rhodecode.lib.utils2 import str2bool
+from rhodecode.lib.compat import hybrid_property
 from rhodecode.model.db import User
 
 log = logging.getLogger(__name__)
@@ -35,6 +36,7 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
     def __init__(self):
         pass
 
+    @hybrid_property
     def name(self):
         return "container"
 

@@ -27,7 +27,7 @@ import base64
 import logging
 import urllib2
 from rhodecode.lib import auth_modules
-from rhodecode.lib.compat import json, formatted_json
+from rhodecode.lib.compat import json, formatted_json, hybrid_property
 from rhodecode.model.db import User
 
 log = logging.getLogger(__name__)
@@ -128,6 +128,8 @@ class CrowdServer(object):
 
 
 class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
+
+    @hybrid_property
     def name(self):
         return "crowd"
 

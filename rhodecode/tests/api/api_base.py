@@ -1755,4 +1755,3 @@ class BaseTestApi(object):
         response = api_call(self, params)
         expected = RhodeCodeSetting.get_server_info()
         self._compare_ok(id_, expected, given=response.body)
-

@@ -33,7 +33,7 @@ import socket
 import threading
 
 from rhodecode.lib import auth_modules
-from rhodecode.lib.compat import formatted_json
+from rhodecode.lib.compat import formatted_json, hybrid_property
 
 log = logging.getLogger(__name__)
 
@@ -55,6 +55,7 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
              (v + RhodeCodeAuthPlugin.AUTH_CACHE_TTL > ts)])
         _auth_cache = cleared_cache
 
+    @hybrid_property
     def name(self):
         return "pam"
 

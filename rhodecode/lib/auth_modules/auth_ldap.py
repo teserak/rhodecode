@@ -28,6 +28,7 @@ import traceback
 import formencode
 
 from rhodecode.lib import auth_modules
+from rhodecode.lib.compat import hybrid_property
 from rhodecode.lib.utils2 import safe_unicode, safe_str
 from rhodecode.lib.exceptions import (
     LdapConnectionError, LdapUsernameError, LdapPasswordError, LdapImportError
@@ -178,6 +179,7 @@ class RhodeCodeAuthPlugin(auth_modules.RhodeCodeExternalAuthPlugin):
         self._tls_reqcert_values = ["NEVER", "ALLOW", "TRY", "DEMAND", "HARD"]
         self._search_scopes = ["BASE", "ONELEVEL", "SUBTREE"]
 
+    @hybrid_property
     def name(self):
         return "ldap"
 

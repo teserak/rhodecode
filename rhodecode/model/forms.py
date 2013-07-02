@@ -28,6 +28,8 @@ from pylons.i18n.translation import _
 
 from rhodecode import BACKENDS
 from rhodecode.model import validators as v
+import rhodecode.lib.auth_modules.auth_rhodecode
+from rhodecode.lib import auth_modules
 from rhodecode.model.db import RhodeCodeSetting
 
 log = logging.getLogger(__name__)
@@ -89,9 +91,7 @@ def UserForm(edit=False, old_data={}):
         firstname = v.UnicodeString(strip=True, min=1, not_empty=False)
         lastname = v.UnicodeString(strip=True, min=1, not_empty=False)
         email = All(v.Email(not_empty=True), v.UniqSystemEmail(old_data))
-
         chained_validators = [v.ValidPasswordsMatch()]
-
     return _UserForm
 
 
@@ -379,7 +379,7 @@ def AuthSettingsForm(current_active_modules):
                 import rhodecode.lib.auth_modules
                 for module in current_active_modules:
                     plugin = rhodecode.lib.auth_modules.loadplugin(module)
-                    plugin_name = plugin.name()
+                    plugin_name = plugin.name
                     for sv in plugin.plugin_settings():
                         newk = "auth_%s_%s" % (plugin_name, sv["name"])
                         self.add_field(newk, sv["validator"])
