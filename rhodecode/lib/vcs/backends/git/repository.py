@@ -18,6 +18,7 @@ import logging
 import posixpath
 import string
 
+from dulwich.config import ConfigFile
 from dulwich.objects import Tag
 from dulwich.repo import Repo, NotGitRepository
 
@@ -39,7 +40,6 @@ from rhodecode.lib.vcs.utils.hgcompat import (
 )
 
 from .changeset import GitChangeset
-from .config import ConfigFile
 from .inmemory import GitInMemoryChangeset
 from .workdir import GitWorkdir
 
